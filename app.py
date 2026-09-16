@@ -109,23 +109,16 @@ st.markdown(
     /* ---------- Header ---------- */
     .st-key-app_header {
         background: linear-gradient(120deg, var(--navy) 0%, var(--navy-2) 100%);
-        border-radius: 12px; padding: 14px 22px; margin-bottom: 12px;
+        border-radius: 12px; padding: 22px 26px; margin-bottom: 14px;
     }
     .st-key-app_header p, .st-key-app_header span, .st-key-app_header div { color: #FFFFFF; }
-    .app-header-title { font-size: 1.35rem; font-weight: 700; margin: 0; color: #FFFFFF !important; }
+    .st-key-app_header [data-testid="stVerticalBlock"] { gap: 0.4rem; }
+    .app-header-title { font-size: 1.35rem; font-weight: 700; margin: 0; color: #FFFFFF !important; line-height: 1.3; }
     .app-header-sub { font-size: 0.82rem; color: #A9BBC9 !important; margin-top: 2px; }
-    .st-key-app_header .stButton > button,
-    .st-key-app_header [data-testid="stPopoverButton"] {
-        background: rgba(255,255,255,0.08) !important; color: #fff !important;
-        border: 1px solid rgba(255,255,255,0.25) !important;
-        border-radius: 7px !important; font-size: 0.78rem !important; padding: 4px 10px !important;
-        float: right; margin-top: 2px;
-    }
-    .st-key-app_header [data-testid="stPopoverButton"]:hover { background: rgba(255,255,255,0.18) !important; }
-    .st-key-app_header div[data-testid="stPopover"] { width: auto !important; display: flex; justify-content: flex-end; }
+    .header-right { display: flex; justify-content: flex-end; width: 100%; }
     .status-pill {
-        display:inline-flex; align-items:center; gap:6px; padding: 5px 12px; border-radius: 20px;
-        font-size: 0.76rem; font-weight: 600; float:right; margin-top: 2px;
+        display:inline-flex; align-items:center; gap:6px; padding: 6px 14px; border-radius: 20px;
+        font-size: 0.76rem; font-weight: 600; white-space: nowrap; text-decoration: none !important;
     }
     .status-dot { width:7px; height:7px; border-radius:50%; display:inline-block; }
     .status-neutral { background: rgba(255,255,255,0.1); color:#D7E2EA !important; }
@@ -374,20 +367,12 @@ status_label = "Signal Loaded" if has_audio() else "Ready"
 status_class = "status-success" if has_audio() else "status-neutral"
 
 with st.container(key="app_header"):
-    hcol1, hcol2 = st.columns([5, 1])
+    hcol1, hcol2 = st.columns([5, 1], vertical_alignment="center")
     with hcol1:
         st.markdown('<div class="app-header-title">Audio Signal Processing Toolkit</div>', unsafe_allow_html=True)
         st.markdown('<div class="app-header-sub">Analyze, transform, visualize, and compare audio signals.</div>', unsafe_allow_html=True)
     with hcol2:
-        st.markdown(f'<div class="status-pill {status_class}"><span class="status-dot"></span>{status_label}</div>', unsafe_allow_html=True)
-        with st.popover("Help"):
-            st.markdown(
-                "**About this tool**\n\n"
-                "Walks an audio signal through the full DSP pipeline — input, sampling, "
-                "time/frequency-domain analysis, filtering, separation, noise reduction, and "
-                "reconstruction — so each stage's effect can be inspected numerically and visually.\n\n"
-                "Use the sidebar to move between stages; the currently loaded signal stays available everywhere."
-            )
+        st.markdown(f'<div class="header-right"><div class="status-pill {status_class}"><span class="status-dot"></span>{status_label}</div></div>', unsafe_allow_html=True)
 
 # --------------------------------------------------------------------------
 # Pipeline strip
