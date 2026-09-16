@@ -10,25 +10,38 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
 plt.rcParams.update({
-    "figure.facecolor": "white",
-    "axes.facecolor": "white",
+    "figure.facecolor": "#FFFFFF",
+    "axes.facecolor": "#FCFDFD",
+    "axes.edgecolor": "#C6D0D8",
+    "axes.labelcolor": "#33424F",
+    "text.color": "#1B2733",
+    "xtick.color": "#64748B",
+    "ytick.color": "#64748B",
     "axes.grid": True,
-    "grid.alpha": 0.3,
+    "grid.color": "#E2E8EC",
+    "grid.alpha": 0.8,
+    "grid.linewidth": 0.6,
     "font.size": 10,
+    "axes.titleweight": "bold",
+    "axes.titlesize": 11,
+    "axes.titlecolor": "#16232E",
 })
 
-_ACCENT = "#4C6EF5"
-_ACCENT2 = "#F76707"
-_ACCENT3 = "#2FB380"
+# Signal-processing accent system: cyan = primary signal (time domain),
+# amber = secondary signal / spectral peaks, green = detected/positive regions.
+_ACCENT = "#0E7C9B"
+_ACCENT2 = "#D9822B"
+_ACCENT3 = "#2F9E5B"
 
 
-def plot_waveform(y, sr, title="Waveform", highlight_segments=None, xlim=None):
+def plot_waveform(y, sr, title="Waveform", highlight_segments=None, xlim=None, figsize=(9, 3)):
     t = np.arange(len(y)) / sr
-    fig, ax = plt.subplots(figsize=(9, 3))
-    ax.plot(t, y, color=_ACCENT, linewidth=0.6)
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.axhline(0, color="#C6D0D8", linewidth=0.8, zorder=1)
+    ax.plot(t, y, color=_ACCENT, linewidth=0.7, zorder=2)
     if highlight_segments:
         for start, end in highlight_segments:
-            ax.axvspan(start, end, color=_ACCENT3, alpha=0.25)
+            ax.axvspan(start, end, color=_ACCENT3, alpha=0.18, zorder=0)
     if xlim:
         ax.set_xlim(xlim)
     ax.set_xlabel("Time (s)")
@@ -38,9 +51,10 @@ def plot_waveform(y, sr, title="Waveform", highlight_segments=None, xlim=None):
     return fig
 
 
-def plot_fft_spectrum(freqs, mag, title="Frequency Spectrum", log_x=False, xlim=None):
-    fig, ax = plt.subplots(figsize=(9, 3))
-    ax.plot(freqs, mag, color=_ACCENT2, linewidth=0.8)
+def plot_fft_spectrum(freqs, mag, title="Frequency Spectrum", log_x=False, xlim=None, figsize=(9, 3)):
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.fill_between(freqs, mag, color=_ACCENT2, alpha=0.12)
+    ax.plot(freqs, mag, color=_ACCENT2, linewidth=0.9)
     if log_x:
         ax.set_xscale("log")
     if xlim:
@@ -72,10 +86,10 @@ def plot_time_freq_pair(y, sr, title_prefix=""):
     return fig
 
 
-def plot_spectrogram(freqs, times, mag_db, title="Spectrogram"):
-    fig, ax = plt.subplots(figsize=(9, 3.5))
+def plot_spectrogram(freqs, times, mag_db, title="Spectrogram", figsize=(9, 3.5)):
+    fig, ax = plt.subplots(figsize=figsize)
     mesh = ax.pcolormesh(times, freqs, mag_db, shading="auto", cmap="magma")
-    fig.colorbar(mesh, ax=ax, label="dB")
+    fig.colorbar(mesh, ax=ax, label="Magnitude (dB)")
     ax.set_xlabel("Time (s)")
     ax.set_ylabel("Frequency (Hz)")
     ax.set_title(title)
@@ -140,7 +154,7 @@ def plot_before_after(y1, sr1, label1, y2, sr2, label2, title="Before / After"):
 
 def plot_sampling_demo(t_hi, x_hi, t_samples, x_samples, t_recon, x_recon, title="Sampling & Reconstruction"):
     fig, ax = plt.subplots(figsize=(9, 3.5))
-    ax.plot(t_hi, x_hi, color="#adb5bd", linewidth=1.2, label="Original (continuous-time reference)")
+    ax.plot(t_hi, x_hi, color="#9AA7B2", linewidth=1.2, label="Original (continuous-time reference)")
     ax.plot(t_recon, x_recon, color=_ACCENT2, linewidth=1, linestyle="--", label="Reconstructed")
     ax.stem(t_samples, x_samples, linefmt=_ACCENT, markerfmt="o", basefmt=" ")
     ax.set_xlabel("Time (s)")
