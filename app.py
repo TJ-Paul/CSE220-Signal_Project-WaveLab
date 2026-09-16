@@ -56,6 +56,10 @@ def set_current_audio(y: np.ndarray, sr: int, name: str):
     st.session_state.audio_sr = sr
     st.session_state.audio_name = name
     st.session_state.results = {"Original": (y.astype(np.float32), sr)}
+    # Drop cached results tied to whatever audio was loaded previously —
+    # they have their own sample count and no longer match this signal.
+    for key in ("_nr_result", "_sep_result", "song_truth", "noise_truth"):
+        st.session_state.pop(key, None)
 
 
 def store_result(name: str, y: np.ndarray, sr: int):

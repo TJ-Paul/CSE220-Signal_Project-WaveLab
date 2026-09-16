@@ -4,3 +4,4 @@ __pycache__/
 .streamlit/
 *.wav
 !sample_data/*.wav
+audio-toolkit-guide.html
