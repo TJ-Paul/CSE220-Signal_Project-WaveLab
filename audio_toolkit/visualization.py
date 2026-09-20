@@ -12,26 +12,26 @@ import matplotlib.ticker as mticker
 plt.rcParams.update({
     "figure.facecolor": "#FFFFFF",
     "axes.facecolor": "#FCFDFD",
-    "axes.edgecolor": "#C6D0D8",
-    "axes.labelcolor": "#33424F",
-    "text.color": "#1B2733",
-    "xtick.color": "#64748B",
-    "ytick.color": "#64748B",
+    "axes.edgecolor": "#DEE5E9",
+    "axes.labelcolor": "#3B4A56",
+    "text.color": "#1C2B36",
+    "xtick.color": "#5B7184",
+    "ytick.color": "#5B7184",
     "axes.grid": True,
-    "grid.color": "#E2E8EC",
+    "grid.color": "#E7ECEE",
     "grid.alpha": 0.8,
     "grid.linewidth": 0.6,
-    "font.size": 10,
+    "font.size": 11,
     "axes.titleweight": "bold",
-    "axes.titlesize": 11,
-    "axes.titlecolor": "#16232E",
+    "axes.titlesize": 12.5,
+    "axes.titlecolor": "#0F1B24",
 })
 
-# Signal-processing accent system: cyan = primary signal (time domain),
+# Signal-processing accent system: teal = primary signal (time domain),
 # amber = secondary signal / spectral peaks, green = detected/positive regions.
-_ACCENT = "#0E7C9B"
-_ACCENT2 = "#D9822B"
-_ACCENT3 = "#2F9E5B"
+_ACCENT = "#0891B2"
+_ACCENT2 = "#C2760F"
+_ACCENT3 = "#15803D"
 
 
 def plot_waveform(y, sr, title="Waveform", highlight_segments=None, xlim=None, figsize=(9, 3)):

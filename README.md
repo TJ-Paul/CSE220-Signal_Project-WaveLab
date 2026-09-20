@@ -15,6 +15,15 @@ real visualization, and every synthetic-data tab includes a
 one-click "demo" button so it works without needing to hunt down an
 audio file beforehand (real WAV/MP3 upload is fully supported too).
 
+## Architecture
+
+| Path             | Role                                                             |
+| ---------------- | ---------------------------------------------------------------- |
+| `audio_toolkit/` | All DSP — pure functions, no UI dependencies                      |
+| `server/`        | FastAPI layer exposing `audio_toolkit` as JSON over HTTP          |
+| `web/`           | React + TypeScript + Tailwind frontend (canvas-rendered charts)   |
+| `app.py`         | Original Streamlit UI — superseded by `web/`, kept for reference  |
+
 ## Setup
 
 ```bash
@@ -26,8 +35,21 @@ pip install -r requirements.txt
 ## Run
 
 ```bash
-streamlit run app.py
+./run.sh
 ```
+
+Starts the API on `http://localhost:8000` and the web app on
+`http://localhost:5173`; Ctrl+C stops both. On first run it installs the
+frontend's npm dependencies.
+
+To run the two halves separately:
+
+```bash
+python -m uvicorn server.main:app --port 8000 --reload   # API
+cd web && npm run dev                                    # frontend
+```
+
+The legacy Streamlit UI still runs with `streamlit run app.py`.
 
 This opens the app in your browser (default: http://localhost:8501).
 

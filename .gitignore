@@ -1,7 +1,10 @@
 .venv/
 __pycache__/
 *.pyc
+node_modules/
+web/dist/
 .streamlit/
 *.wav
 !sample_data/*.wav
 audio-toolkit-guide.html
+.claude

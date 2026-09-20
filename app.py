@@ -33,165 +33,216 @@ from audio_toolkit import (
 )
 from audio_toolkit.framing import frame_signal
 
-st.set_page_config(page_title="Audio Signal Processing Toolkit", layout="wide", page_icon="🎧")
+st.set_page_config(page_title="Signal Lab — Audio Signal Processing Toolkit", layout="wide", page_icon="∿")
 
 # --------------------------------------------------------------------------
-# Theme — a restrained "signal-processing lab" visual system.
-# Structural layout only; nothing below touches the DSP logic.
+# Theme — "Teal Lab": a minimal, professional signal-processing visual
+# system. Structural layout and design tokens only; nothing below touches
+# the DSP logic.
 # --------------------------------------------------------------------------
 st.markdown(
     """
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
     :root {
-        --navy:        #16232E;
-        --navy-2:      #1F3B4D;
-        --ink:         #1B2733;
-        --muted:       #64748B;
-        --bg:          #F4F7F9;
-        --surface:     #FFFFFF;
-        --border:      #DCE3E8;
-        --accent:      #0E7C9B;
-        --accent-tint: #E4F2F5;
-        --amber:       #C9791B;
-        --amber-tint:  #FBF0DF;
-        --green:       #1E8F53;
-        --green-tint:  #E4F5EB;
-        --red:         #C93B3B;
+        --navy:         #0F1B24;
+        --navy-2:       #16303D;
+        --ink:          #1C2B36;
+        --muted:        #5B7184;
+        --muted-soft:   #8598A6;
+        --bg:           #EFF2F5;
+        --surface:      #FFFFFF;
+        --border:       #DEE5E9;
+        --border-soft:  #EAEFF1;
+        --accent:       #0891B2;
+        --accent-dark:  #076C82;
+        --accent-tint:  #E1F3F7;
+        --amber:        #C2760F;
+        --amber-tint:   #FBF1DF;
+        --green:        #15803D;
+        --green-tint:   #E3F5EA;
+        --red:          #C0392B;
+        --red-tint:     #FBEAE8;
+        --radius-sm:    9px;
+        --radius-md:    14px;
+        --radius-lg:    22px;
+        --shadow-sm:    0 2px 8px rgba(15,27,36,0.06);
+        --shadow-md:    0 12px 32px rgba(15,27,36,0.09);
     }
 
+    html { font-size: 17.5px; }
     html, body, .stApp, [class*="css"] { font-family: 'Inter', -apple-system, sans-serif; }
     code, .mono, div[data-testid="stMetricValue"] { font-family: 'JetBrains Mono', monospace !important; }
+    .stButton > button, .stDownloadButton > button, .stSelectbox, .stTextInput, .stSlider label,
+    .stCheckbox label, .stRadio label { font-size: 0.98rem; }
 
     .stApp { background-color: var(--bg); }
-    .block-container { padding-top: 1.6rem; padding-bottom: 6.5rem; max-width: 1400px; }
-    h1, h2, h3, .app-header-title { color: var(--navy); }
+    .block-container { padding-top: 2.6rem; padding-bottom: 6.5rem; max-width: 1360px; }
+    h1, h2, h3 { color: var(--navy); letter-spacing: -0.01em; }
+    h3 { font-weight: 700; }
     p, li, span, label { color: var(--ink); }
+    [data-testid="stCaptionContainer"] { color: var(--muted) !important; }
 
-    /* ---------- Sidebar ---------- */
+    /* ---------- Sidebar: icon rail + processing pipeline ---------- */
     section[data-testid="stSidebar"] {
-        background-color: var(--navy);
-        border-right: 1px solid #0E1A22;
+        background-color: var(--bg);
+        border-right: 1px solid var(--border-soft);
     }
-    section[data-testid="stSidebar"] * { color: #D7E2EA; }
-    .brand { display:flex; align-items:center; gap:10px; padding: 4px 2px 14px 2px; border-bottom: 1px solid rgba(255,255,255,0.09); margin-bottom: 10px; }
-    .brand-icon { font-size: 1.5rem; }
-    .brand-title { font-weight: 700; font-size: 1.02rem; color: #FFFFFF; line-height:1.15; }
-    .brand-sub { font-size: 0.72rem; color: #8DA1B3; letter-spacing: 0.02em; }
-    .nav-group-label {
-        font-size: 0.68rem; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
-        color: #64809A; margin: 14px 4px 4px 4px;
-    }
-    .nav-item {
-        display:flex; align-items:center; gap:9px; padding: 8px 12px; border-radius: 7px;
-        font-size: 0.87rem; font-weight: 600; margin-bottom: 2px;
-        background: var(--accent); color: #FFFFFF !important;
-    }
-    section[data-testid="stSidebar"] .stButton { margin-bottom: 1px; }
-    section[data-testid="stSidebar"] .stButton > button {
-        background: transparent; border: none; color: #C3D2DE !important; font-weight: 500;
-        font-size: 0.87rem; text-align: left; justify-content: flex-start; padding: 8px 12px;
-        border-radius: 7px; width: 100%;
-    }
-    section[data-testid="stSidebar"] .stButton > button:hover { background: rgba(255,255,255,0.08); color: #FFFFFF !important; }
-    section[data-testid="stSidebar"] .stButton > button p { color: inherit !important; text-align: left; }
-    section[data-testid="stSidebar"] hr { border-color: rgba(255,255,255,0.12) !important; margin: 10px 0; }
+    section[data-testid="stSidebar"] > div { padding-top: 1.2rem; }
+    section[data-testid="stSidebar"] * { color: var(--ink); }
+    section[data-testid="stSidebar"] hr { border-color: var(--border-soft) !important; margin: 14px 0; }
 
-    .signal-card {
-        background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
-        border-radius: 9px; padding: 10px 12px; margin-top: 6px;
+    [class*="st-key-sidebar_"] {
+        background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius-lg);
+        padding: 14px; margin-bottom: 14px; box-shadow: var(--shadow-sm);
     }
-    .signal-card-name { font-weight: 600; font-size: 0.82rem; color: #FFFFFF !important; word-break: break-word; }
-    .signal-card-meta { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: #93A9BC !important; margin-top: 3px; }
-    .signal-card-empty { font-size: 0.78rem; color: #6E859A !important; }
+    .brand { display:flex; align-items:center; gap:10px; }
+    .brand-mark { flex: 0 0 auto; width: 32px; height: 32px; border-radius: 9px; background: var(--accent-tint); display:flex; align-items:center; justify-content:center; }
+    .brand-title { font-weight: 700; font-size: 1.02rem; color: var(--navy); line-height:1.2; letter-spacing: -0.01em; }
+    .brand-sub { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.03em; margin-top: 1px; }
 
-    /* ---------- Header ---------- */
-    .st-key-app_header {
-        background: linear-gradient(120deg, var(--navy) 0%, var(--navy-2) 100%);
-        border-radius: 12px; padding: 22px 26px; margin-bottom: 14px;
+    /* icon-only group nav (help= adds a tooltip wrapper, so use a descendant match) */
+    [class*="st-key-railbtn_"] .stButton button {
+        border-radius: var(--radius-md); padding: 10px 0; box-shadow: none; border: 1px solid transparent;
+        background: transparent;
     }
-    .st-key-app_header p, .st-key-app_header span, .st-key-app_header div { color: #FFFFFF; }
-    .st-key-app_header [data-testid="stVerticalBlock"] { gap: 0.4rem; }
-    .app-header-title { font-size: 1.35rem; font-weight: 700; margin: 0; color: #FFFFFF !important; line-height: 1.3; }
-    .app-header-sub { font-size: 0.82rem; color: #A9BBC9 !important; margin-top: 2px; }
-    .header-right { display: flex; justify-content: flex-end; width: 100%; }
-    .status-pill {
-        display:inline-flex; align-items:center; gap:6px; padding: 6px 14px; border-radius: 20px;
-        font-size: 0.76rem; font-weight: 600; white-space: nowrap; text-decoration: none !important;
-    }
-    .status-dot { width:7px; height:7px; border-radius:50%; display:inline-block; }
-    .status-neutral { background: rgba(255,255,255,0.1); color:#D7E2EA !important; }
-    .status-neutral .status-dot { background:#8DA1B3; }
-    .status-success { background: rgba(30,143,83,0.22); color:#8CE0B4 !important; }
-    .status-success .status-dot { background:#3DDB8B; box-shadow:0 0 6px #3DDB8B; }
+    [class*="st-key-railbtn_"] .stButton button p { display: none; }
+    [class*="st-key-railbtn_"] .stButton button [data-testid="stIconMaterial"] { font-size: 1.4rem; color: var(--muted); }
+    [class*="st-key-railbtn_"] .stButton button:hover { background: var(--accent-tint); }
+    [class*="st-key-railbtn_"] .stButton button:hover [data-testid="stIconMaterial"] { color: var(--accent-dark); }
+    [class*="st-key-railbtn_"] .stButton button[kind="primary"] { background: var(--accent); box-shadow: var(--shadow-sm); }
+    [class*="st-key-railbtn_"] .stButton button[kind="primary"] [data-testid="stIconMaterial"] { color: #FFFFFF; }
 
-    /* ---------- Pipeline strip ---------- */
-    .pipeline-row {
-        display:flex; align-items:center; gap:4px; overflow-x:auto; padding: 10px 4px 14px 4px;
-        margin-bottom: 6px;
+    /* vertical processing-pipeline timeline */
+    .timeline-heading { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted-soft); margin: 2px 2px 8px 2px; }
+    [class*="st-key-pipeline_track"] [data-testid="stVerticalBlock"] { gap: 0 !important; }
+    [class*="st-key-pl_"] .stButton > button {
+        border: none; border-left: 2px solid var(--border); border-radius: 0; background: transparent;
+        text-align: left; justify-content: flex-start; padding: 9px 8px 9px 16px; font-size: 0.92rem;
+        font-weight: 600; color: var(--muted); box-shadow: none; width: 100%; position: relative;
     }
-    .chip {
-        flex: 0 0 auto; font-size: 0.72rem; font-weight: 600; color: var(--muted);
-        background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
-        padding: 5px 12px; white-space: nowrap;
+    [class*="st-key-pl_"] .stButton > button::before {
+        content: ''; position: absolute; left: -4px; top: 50%; transform: translateY(-50%);
+        width: 7px; height: 7px; border-radius: 50%; background: var(--surface); border: 2px solid var(--border);
     }
-    .chip-active { background: var(--accent); border-color: var(--accent); color: #FFFFFF; }
-    .chip-arrow { color: #B7C2CB; font-size: 0.8rem; flex: 0 0 auto; }
+    [class*="st-key-pl_"] .stButton > button:hover { color: var(--accent-dark); background: var(--accent-tint); }
+    [class*="st-key-pl_"] .stButton > button[kind="primary"] {
+        border-left: 2px solid var(--accent); background: var(--accent-tint); color: var(--accent-dark); box-shadow: none;
+    }
+    [class*="st-key-pl_"] .stButton > button[kind="primary"]::before { background: var(--accent); border-color: var(--accent); }
+
+    .signal-card { background: var(--accent-tint); border: 1px solid var(--border-soft); border-radius: var(--radius-md); padding: 11px 13px; }
+    .signal-card-name { font-weight: 600; font-size: 0.9rem; color: var(--navy); word-break: break-word; }
+    .signal-card-meta { font-family: 'JetBrains Mono', monospace; font-size: 0.76rem; color: var(--muted); margin-top: 4px; letter-spacing: 0.01em; }
+    .signal-card-empty { font-size: 0.86rem; color: var(--muted-soft); }
+
+    /* ---------- Top-right status indicator (all pages) ---------- */
+    .topbar-status-row { display:flex; justify-content:flex-end; margin-bottom: 14px; }
+    .topbar-status {
+        display:inline-flex; align-items:center; gap:7px; padding: 8px 18px; border-radius: 20px;
+        font-size: 0.88rem; font-weight: 700; white-space: nowrap;
+    }
+    .status-dot { width:6px; height:6px; border-radius:50%; display:inline-block; }
+    .topbar-status.neutral { background: var(--surface); border: 1px solid var(--border); color: var(--muted); }
+    .topbar-status.neutral .status-dot { background: var(--muted-soft); }
+    .topbar-status.active { background: var(--accent); color: #FFFFFF; box-shadow: var(--shadow-sm); }
+    .topbar-status.active .status-dot { background: #FFFFFF; }
+
+    /* ---------- Dashboard hero banner (Audio Input page) ---------- */
+    .st-key-hero_banner {
+        background: linear-gradient(135deg, var(--navy) 0%, var(--navy-2) 100%);
+        border-radius: var(--radius-lg); padding: 26px 28px; margin-bottom: 0;
+        box-shadow: var(--shadow-md); position: relative; overflow: hidden; min-height: 176px;
+    }
+    .st-key-hero_banner p, .st-key-hero_banner span, .st-key-hero_banner div { color: #FFFFFF; }
+    .hero-eyebrow { font-size: 0.74rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: #5FC3DB !important; position: relative; z-index: 1; }
+    .hero-title { font-size: 1.7rem; font-weight: 700; margin: 4px 0 0 0; color: #FFFFFF !important; line-height: 1.28; letter-spacing: -0.015em; max-width: 78%; position: relative; z-index: 1; }
+    .hero-sub { font-size: 0.95rem; color: #93AABA !important; margin-top: 6px; max-width: 70%; position: relative; z-index: 1; }
+    .hero-illustration { position: absolute; right: -6px; bottom: -8px; opacity: 0.9; z-index: 0; }
+
+    /* ---------- Upload widget card (Audio Input page) ---------- */
+    .st-key-upload_card {
+        background: var(--surface); border: 1.5px dashed var(--border); border-radius: var(--radius-lg);
+        padding: 18px 20px 8px 20px; box-shadow: var(--shadow-sm); min-height: 176px;
+        display:flex; flex-direction:column; justify-content:center;
+    }
+    .upload-title { font-weight: 700; font-size: 1.05rem; color: var(--navy); text-align:center; }
+    .upload-sub { font-size: 0.82rem; color: var(--muted); text-align:center; margin-top: 2px; margin-bottom: 8px; }
+    .st-key-upload_card [data-testid="stFileUploaderDropzone"] { border: none; background: transparent; padding: 0; }
+
+    /* ---------- Demo signal cards ---------- */
+    .demo-card-icon { width: 38px; height: 38px; border-radius: 11px; background: var(--accent-tint); display:flex; align-items:center; justify-content:center; margin: 0 auto 8px auto; }
+    .demo-card-name { font-weight: 700; font-size: 1rem; color: var(--navy); text-align:center; }
+    .demo-card-sub { font-size: 0.8rem; color: var(--muted); text-align:center; margin-top: 2px; margin-bottom: 10px; }
+    [class*="st-key-demo_card_"] {
+        background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius-lg);
+        padding: 18px 14px 14px 14px; box-shadow: var(--shadow-sm);
+    }
+
+    /* ---------- Signal overview (thin progress bars) ---------- */
+    .overview-label { font-size: 0.94rem; font-weight: 600; color: var(--ink); padding-top: 6px; }
+    .overview-value { font-size: 0.9rem; font-weight: 700; color: var(--navy); text-align: right; padding-top: 6px; font-family: 'JetBrains Mono', monospace; }
+    div[data-testid="stProgress"] { padding-top: 10px; }
+    div[data-testid="stProgress"] > div > div { background: var(--border-soft) !important; border-radius: 10px; height: 7px !important; }
+    div[data-testid="stProgress"] > div > div > div { background: var(--accent) !important; border-radius: 10px; }
 
     /* ---------- Cards / metrics ---------- */
     div[data-testid="stMetric"] {
-        background-color: var(--surface); border: 1px solid var(--border); border-radius: 8px;
-        padding: 0.8rem 1rem;
+        background-color: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius-md);
+        padding: 0.85rem 1rem; box-shadow: var(--shadow-sm);
     }
-    div[data-testid="stMetricLabel"] { color: var(--muted); font-size: 0.78rem; }
-    div[data-testid="stMetricValue"] { color: var(--navy); }
+    div[data-testid="stMetricLabel"] { color: var(--muted); font-size: 0.85rem; }
+    div[data-testid="stMetricValue"] {
+        color: var(--navy); font-size: 1.7rem; line-height: 1.25;
+        white-space: normal; overflow-wrap: break-word;
+    }
 
-    .section-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); margin: 14px 0 6px 0; }
+    .section-label { font-size: 0.78rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin: 20px 0 10px 0; }
 
     /* ---------- Buttons ---------- */
     .stButton > button, .stDownloadButton > button {
-        border-radius: 7px; border: 1px solid var(--accent); color: var(--accent);
-        background-color: var(--surface); font-weight: 600; transition: all 0.15s ease;
+        border-radius: var(--radius-sm); border: 1px solid var(--border); color: var(--ink);
+        background-color: var(--surface); font-weight: 600; transition: all 0.14s ease; box-shadow: var(--shadow-sm);
     }
-    .stButton > button:hover, .stDownloadButton > button:hover { background-color: var(--accent-tint); }
-    .stButton > button[kind="primary"] { background-color: var(--accent); color: #FFFFFF; }
-    .stButton > button[kind="primary"]:hover { background-color: #0B6883; }
+    .stButton > button:hover, .stDownloadButton > button:hover { border-color: var(--accent); color: var(--accent-dark); background-color: var(--accent-tint); }
+    .stButton > button[kind="primary"] { background-color: var(--accent); color: #FFFFFF; border-color: var(--accent); }
+    .stButton > button[kind="primary"]:hover { background-color: var(--accent-dark); border-color: var(--accent-dark); color: #FFFFFF; }
 
     /* ---------- Expanders / dataframe ---------- */
-    details[data-testid="stExpander"] { border: 1px solid var(--border); border-radius: 8px; background-color: var(--surface); }
-    div[data-testid="stAlert"] { border-radius: 8px; }
+    details[data-testid="stExpander"] { border: 1px solid var(--border-soft); border-radius: var(--radius-md); background-color: var(--surface); box-shadow: var(--shadow-sm); }
+    div[data-testid="stAlert"] { border-radius: var(--radius-md); }
 
     /* ---------- Loaded-signal card (Audio Input page) ---------- */
-    .loaded-badge { display:inline-block; font-size: 0.72rem; font-weight:700; letter-spacing:0.05em; color: var(--green); background: var(--green-tint); padding: 3px 10px; border-radius: 12px; }
-    .loaded-name { font-size: 1.05rem; font-weight: 700; color: var(--navy); margin: 8px 0 10px 0; word-break: break-word; }
+    .loaded-badge { display:inline-block; font-size: 0.78rem; font-weight:700; letter-spacing:0.06em; text-transform: uppercase; color: var(--green); background: var(--green-tint); padding: 3px 10px; border-radius: 12px; }
+    .loaded-name { font-size: 1.2rem; font-weight: 700; color: var(--navy); margin: 9px 0 10px 0; word-break: break-word; }
 
     /* ---------- Checklist ---------- */
-    .checklist-item { font-size: 0.86rem; padding: 4px 0; }
+    .checklist-item { font-size: 0.95rem; padding: 4px 0; }
     .check-done { color: var(--green); font-weight: 600; }
     .check-pending { color: var(--muted); }
 
     /* ---------- Legend chips (VAD) ---------- */
-    .legend-chip { font-size: 0.78rem; font-weight: 600; padding: 3px 4px; }
+    .legend-chip { font-size: 0.88rem; font-weight: 600; padding: 3px 4px; }
     .legend-speech { color: var(--green); }
     .legend-silence { color: var(--muted); }
 
     /* ---------- Empty state ---------- */
-    .empty-state { text-align:center; padding: 40px 20px 18px 20px; }
-    .empty-state-icon { font-size: 1.8rem; color: var(--accent); letter-spacing: 3px; opacity: 0.6; }
-    .empty-state-title { font-size: 1.1rem; font-weight: 700; color: var(--navy); margin-top: 10px; }
-    .empty-state-sub { font-size: 0.85rem; color: var(--muted); margin-top: 4px; max-width: 420px; margin-left:auto; margin-right:auto; }
-    .empty-state-tags { text-align:center; font-size: 0.74rem; color: var(--muted); margin-top: 18px; letter-spacing: 0.01em; }
+    .empty-state { text-align:center; padding: 44px 20px 18px 20px; }
+    .empty-state-icon { color: var(--accent); opacity: 0.65; margin-bottom: 4px; }
+    .empty-state-title { font-size: 1.2rem; font-weight: 700; color: var(--navy); margin-top: 12px; }
+    .empty-state-sub { font-size: 0.95rem; color: var(--muted); margin-top: 4px; max-width: 420px; margin-left:auto; margin-right:auto; }
+    .empty-state-tags { text-align:center; font-size: 0.8rem; color: var(--muted-soft); margin-top: 20px; letter-spacing: 0.01em; }
 
     /* ---------- Persistent mini player ---------- */
     .st-key-mini_player {
         position: fixed; left: 0; right: 0; bottom: 0; z-index: 999;
-        background: var(--navy); padding: 10px 26px 6px 26px; box-shadow: 0 -3px 14px rgba(0,0,0,0.18);
-        border-top: 1px solid rgba(255,255,255,0.08);
+        background: var(--navy); padding: 10px 26px 6px 26px; box-shadow: 0 -4px 18px rgba(0,0,0,0.2);
+        border-top: 1px solid rgba(255,255,255,0.07);
     }
-    .st-key-mini_player * { color: #E4ECF1; }
-    .mini-player-name { font-size: 0.82rem; font-weight: 600; margin-bottom: 2px; }
-    .mini-player-meta { font-family:'JetBrains Mono',monospace; font-size: 0.75rem; color: #93A9BC; text-align:right; padding-top: 10px; }
+    .st-key-mini_player * { color: #DCE6EC; }
+    .mini-player-name { font-size: 0.92rem; font-weight: 600; margin-bottom: 2px; letter-spacing: -0.005em; }
+    .mini-player-meta { font-family:'JetBrains Mono',monospace; font-size: 0.82rem; color: #7C93A3; text-align:right; padding-top: 10px; }
     .st-key-mini_player audio { height: 32px; }
     </style>
     """,
@@ -215,6 +266,15 @@ def audio_player(y: np.ndarray, sr: int):
 
 def download_button(y: np.ndarray, sr: int, label: str, filename: str, key: str):
     st.download_button(label, data=to_wav_bytes(y, sr), file_name=filename, mime="audio/wav", key=key)
+
+
+def wave_icon(color: str = "#0891B2", size: int = 16) -> str:
+    """A small inline waveform glyph, reused for the brand mark and demo cards."""
+    return (
+        f'<svg width="{size}" height="{size}" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">'
+        f'<path d="M0.5 9 L3.2 9 L4.6 4 L7 12.5 L9 6.5 L10.5 9 L12 9 L13.2 6 L15.5 9" '
+        f'stroke="{color}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>'
+    )
 
 
 def set_current_audio(y: np.ndarray, sr: int, name: str):
@@ -253,14 +313,16 @@ def load_demo(kind: str):
         set_current_audio(noisy, sr, "synthetic: noisy tone demo")
         st.session_state["noise_truth"] = (clean, sr)
     st.session_state.pop("_last_upload_info", None)
-    st.session_state["_show_uploader"] = False
 
 
 def empty_state():
     st.markdown(
         """
         <div class="empty-state">
-            <div class="empty-state-icon">∿ ∿ ∿</div>
+            <svg class="empty-state-icon" width="34" height="34" viewBox="0 0 34 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M1 20 L7 20 L10 9 L15 27 L19 14 L22 20 L26 20 L29 15 L33 20"
+                      stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </svg>
             <div class="empty-state-title">No signal loaded</div>
             <div class="empty-state-sub">Upload an audio file or select a demonstration signal to begin analysis.</div>
         </div>
@@ -296,96 +358,98 @@ st.session_state.setdefault(
 )
 
 NAV_GROUPS = [
-    ("INPUT", [("input", "Audio Input", "🎙️")]),
-    ("ANALYSIS", [
-        ("file_info", "File Information", "📄"),
-        ("waveform", "Waveform", "〰️"),
-        ("sampling", "Sampling & Aliasing", "📶"),
-        ("vad", "Voice Activity Detection", "🗣️"),
-        ("fft", "FFT Spectrum", "📊"),
-        ("spectrogram", "Spectrogram", "🌈"),
+    ("Input", "mic", [("input", "Audio Input")]),
+    ("Analysis", "monitoring", [
+        ("file_info", "File Information"),
+        ("waveform", "Waveform"),
+        ("sampling", "Sampling & Aliasing"),
+        ("vad", "Voice Activity Detection"),
+        ("fft", "FFT Spectrum"),
+        ("spectrogram", "Spectrogram"),
     ]),
-    ("PROCESSING", [
-        ("filtering", "Filtering", "🎚️"),
-        ("separation", "Vocal / Instrumental Separation", "🎼"),
-        ("noise", "Noise Reduction", "🧹"),
+    ("Processing", "tune", [
+        ("filtering", "Filtering"),
+        ("separation", "Vocal / Instrumental Separation"),
+        ("noise", "Noise Reduction"),
     ]),
-    ("COMPARISON", [("comparison", "Signal Comparison", "⚖️")]),
+    ("Comparison", "balance", [("comparison", "Signal Comparison")]),
 ]
-PAGE_TITLES = {key: label for _, items in NAV_GROUPS for key, label, _ in items}
-PAGE_STAGE = {
-    "input": "Input", "file_info": "Input", "waveform": "Time Domain", "sampling": "Sampling",
-    "vad": "Energy", "fft": "Frequency Domain", "spectrogram": "FFT / STFT",
-    "filtering": "Filtering", "separation": "Filtering", "noise": "Filtering", "comparison": "Output",
-}
-STAGES = ["Input", "Sampling", "Time Domain", "Framing", "Energy", "FFT / STFT",
-          "Frequency Domain", "Filtering", "Reconstruction", "Output"]
+PAGE_TITLES = {key: label for _, _, items in NAV_GROUPS for key, label in items}
+PAGE_TO_GROUP = {key: group_name for group_name, _, items in NAV_GROUPS for key, _ in items}
 
 # --------------------------------------------------------------------------
-# Sidebar
+# Left column — icon rail (top-level categories) + vertical processing
+# pipeline (pages within the active category). Replaces the old bulky
+# text navigation panel with a minimal, icon-driven nav.
 # --------------------------------------------------------------------------
 with st.sidebar:
-    st.markdown(
-        '<div class="brand"><div class="brand-icon">〰️</div>'
-        '<div><div class="brand-title">Audio Signal Lab</div>'
-        '<div class="brand-sub">Digital Signal Processing Toolkit</div></div></div>',
-        unsafe_allow_html=True,
-    )
-
-    for group_name, items in NAV_GROUPS:
-        st.markdown(f'<div class="nav-group-label">{group_name}</div>', unsafe_allow_html=True)
-        for key, label, icon in items:
-            if st.session_state.nav == key:
-                st.markdown(f'<div class="nav-item">{icon} {label}</div>', unsafe_allow_html=True)
-            else:
-                if st.button(f"{icon}  {label}", key=f"nav_{key}", width="stretch"):
-                    st.session_state.nav = key
-                    st.rerun()
-
-    st.divider()
-    st.markdown('<div class="nav-group-label">Current Signal</div>', unsafe_allow_html=True)
-    if has_audio():
-        y0, sr0 = st.session_state.audio_y, st.session_state.audio_sr
-        if st.session_state.audio_name.startswith("synthetic:"):
-            fmt = "Synthetic"
-        else:
-            fmt = os.path.splitext(st.session_state.audio_name)[1].lstrip(".").upper() or "Audio"
+    with st.container(key="sidebar_brand"):
         st.markdown(
-            f'<div class="signal-card">'
-            f'<div class="signal-card-name">{st.session_state.audio_name}</div>'
-            f'<div class="signal-card-meta">{fmt} • {sr0/1000:.1f} kHz • {len(y0)/sr0:.1f}s</div>'
-            f'</div>',
+            f'<div class="brand"><div class="brand-mark">{wave_icon("#0891B2", 16)}</div>'
+            '<div><div class="brand-title">Signal Lab</div>'
+            '<div class="brand-sub">DSP Toolkit</div></div></div>',
             unsafe_allow_html=True,
         )
-    else:
-        st.markdown('<div class="signal-card"><span class="signal-card-empty">No signal loaded</span></div>', unsafe_allow_html=True)
+
+    active_group = PAGE_TO_GROUP[st.session_state.nav]
+
+    with st.container(key="sidebar_rail"):
+        rail_cols = st.columns(len(NAV_GROUPS))
+        for col, (group_name, icon, items) in zip(rail_cols, NAV_GROUPS):
+            with col:
+                with st.container(key=f"railbtn_{group_name}"):
+                    is_active = group_name == active_group
+                    if st.button(
+                        group_name, key=f"grp_{group_name}", icon=f":material/{icon}:",
+                        help=group_name, type="primary" if is_active else "secondary", width="stretch",
+                    ):
+                        st.session_state.nav = items[0][0]
+                        st.rerun()
+
+    with st.container(key="sidebar_pipeline"):
+        st.markdown(f'<div class="timeline-heading">{active_group} pipeline</div>', unsafe_allow_html=True)
+        active_items = next(items for group_name, _, items in NAV_GROUPS if group_name == active_group)
+        with st.container(key="pipeline_track"):
+            for key, label in active_items:
+                is_active = st.session_state.nav == key
+                with st.container(key=f"pl_{key}"):
+                    if st.button(label, key=f"navbtn_{key}", type="primary" if is_active else "secondary", width="stretch"):
+                        st.session_state.nav = key
+                        st.rerun()
+
+    with st.container(key="sidebar_signal"):
+        st.markdown('<div class="timeline-heading">Current signal</div>', unsafe_allow_html=True)
+        if has_audio():
+            y0, sr0 = st.session_state.audio_y, st.session_state.audio_sr
+            if st.session_state.audio_name.startswith("synthetic:"):
+                fmt = "Synthetic"
+            else:
+                fmt = os.path.splitext(st.session_state.audio_name)[1].lstrip(".").upper() or "Audio"
+            st.markdown(
+                f'<div class="signal-card">'
+                f'<div class="signal-card-name">{st.session_state.audio_name}</div>'
+                f'<div class="signal-card-meta">{fmt} • {sr0/1000:.1f} kHz • {len(y0)/sr0:.1f}s</div>'
+                f'</div>',
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown('<div class="signal-card"><span class="signal-card-empty">No signal loaded</span></div>', unsafe_allow_html=True)
+        if has_audio() and st.button("Clear signal", key="reset_signal_btn", icon=":material/restart_alt:", help="Clear the loaded signal and results", width="stretch"):
+            for k in ("audio_y", "audio_sr", "audio_name", "results", "_nr_result", "_sep_result", "_filt_result", "song_truth", "noise_truth", "_last_upload_size", "_last_upload_info", "_last_upload_id"):
+                st.session_state.pop(k, None)
+            st.session_state.nav = "input"
+            st.rerun()
 
 # --------------------------------------------------------------------------
-# Header
+# Top-right status indicator (every page)
 # --------------------------------------------------------------------------
 status_label = "Signal Loaded" if has_audio() else "Ready"
-status_class = "status-success" if has_audio() else "status-neutral"
-
-with st.container(key="app_header"):
-    hcol1, hcol2 = st.columns([5, 1], vertical_alignment="center")
-    with hcol1:
-        st.markdown('<div class="app-header-title">Audio Signal Processing Toolkit</div>', unsafe_allow_html=True)
-        st.markdown('<div class="app-header-sub">Analyze, transform, visualize, and compare audio signals.</div>', unsafe_allow_html=True)
-    with hcol2:
-        st.markdown(f'<div class="header-right"><div class="status-pill {status_class}"><span class="status-dot"></span>{status_label}</div></div>', unsafe_allow_html=True)
-
-# --------------------------------------------------------------------------
-# Pipeline strip
-# --------------------------------------------------------------------------
-active_stage = PAGE_STAGE.get(st.session_state.nav)
-chip_html = '<div class="pipeline-row">'
-for i, s in enumerate(STAGES):
-    if i:
-        chip_html += '<span class="chip-arrow">→</span>'
-    cls = "chip chip-active" if s == active_stage else "chip"
-    chip_html += f'<span class="{cls}">{s.upper()}</span>'
-chip_html += "</div>"
-st.markdown(chip_html, unsafe_allow_html=True)
+status_class = "active" if has_audio() else "neutral"
+st.markdown(
+    f'<div class="topbar-status-row"><div class="topbar-status {status_class}">'
+    f'<span class="status-dot"></span>{status_label}</div></div>',
+    unsafe_allow_html=True,
+)
 
 page = st.session_state.nav
 
@@ -393,58 +457,128 @@ page = st.session_state.nav
 # Page — Audio Input
 # --------------------------------------------------------------------------
 if page == "input":
-    st.subheader("Audio Input")
+    # ---------------------------------------------------------------
+    # Top row: compact upload widget (left) + hero banner (right)
+    # ---------------------------------------------------------------
+    up_col, hero_col = st.columns([1, 1.5], gap="medium")
 
-    if not has_audio() or st.session_state.get("_show_uploader"):
-        st.markdown('<div class="section-label">Upload an audio file</div>', unsafe_allow_html=True)
-        uploaded = st.file_uploader("Upload a WAV or MP3 file", type=["wav", "mp3"], label_visibility="collapsed")
-        if uploaded is not None and st.session_state.get("_last_upload_id") != uploaded.file_id:
-            try:
-                y, sr = io_utils.load_audio(uploaded, sr=None, mono=True)
-                set_current_audio(y, sr, uploaded.name)
-                st.session_state["_last_upload_info"] = io_utils.get_audio_info(
-                    uploaded, filename=uploaded.name, file_size_bytes=uploaded.size
-                )
-                st.session_state["_last_upload_size"] = uploaded.size
-                st.session_state["_last_upload_id"] = uploaded.file_id
-                st.session_state["_show_uploader"] = False
-                st.rerun()
-            except Exception as e:
-                st.error(f"Could not load file: {e}")
+    with up_col:
+        with st.container(key="upload_card"):
+            st.markdown('<div class="upload-title">Upload audio</div>', unsafe_allow_html=True)
+            st.markdown('<div class="upload-sub">Drag &amp; drop or browse a file</div>', unsafe_allow_html=True)
+            uploaded = st.file_uploader(
+                "Upload a WAV or MP3 file", type=["wav", "mp3"], label_visibility="collapsed", key="dashboard_uploader",
+            )
+            if uploaded is not None and st.session_state.get("_last_upload_id") != uploaded.file_id:
+                try:
+                    y, sr = io_utils.load_audio(uploaded, sr=None, mono=True)
+                    set_current_audio(y, sr, uploaded.name)
+                    st.session_state["_last_upload_info"] = io_utils.get_audio_info(
+                        uploaded, filename=uploaded.name, file_size_bytes=uploaded.size
+                    )
+                    st.session_state["_last_upload_size"] = uploaded.size
+                    st.session_state["_last_upload_id"] = uploaded.file_id
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Could not load file: {e}")
 
-        st.markdown('<div class="section-label">Or try a demo signal</div>', unsafe_allow_html=True)
-        d1, d2, d3 = st.columns(3)
-        with d1:
-            if st.button("🗣️ Speech-like", width="stretch", key="demo_speech"):
-                load_demo("speech")
-                st.rerun()
-        with d2:
-            if st.button("🎵 Song-like", width="stretch", key="demo_song"):
-                load_demo("song")
-                st.rerun()
-        with d3:
-            if st.button("📡 Noisy tone", width="stretch", key="demo_noisy"):
-                load_demo("noisy")
-                st.rerun()
+    with hero_col:
+        with st.container(key="hero_banner"):
+            st.markdown('<div class="hero-eyebrow">Signal Lab</div>', unsafe_allow_html=True)
+            st.markdown('<div class="hero-title">Audio Signal Processing Toolkit</div>', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="hero-sub">Analyze, transform, visualize, and compare audio signals.</div>',
+                unsafe_allow_html=True,
+            )
+            st.markdown(
+                f'<div class="hero-illustration">'
+                f'<svg width="170" height="100" viewBox="0 0 170 100" fill="none" xmlns="http://www.w3.org/2000/svg">'
+                f'<path d="M0 55 L14 55 L20 30 L28 78 L36 15 L44 65 L52 45 L60 55 L150 55" '
+                f'stroke="#5FC3DB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.35"/>'
+                f'<path d="M0 70 L20 70 L26 50 L34 88 L42 40 L50 75 L58 60 L66 70 L170 70" '
+                f'stroke="#0891B2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.55"/>'
+                f'</svg></div>',
+                unsafe_allow_html=True,
+            )
 
-    if has_audio():
+    # ---------------------------------------------------------------
+    # Demo signal cards
+    # ---------------------------------------------------------------
+    st.markdown('<div class="section-label">Demo signals</div>', unsafe_allow_html=True)
+    demo_defs = [
+        ("speech", "Speech-like", "Synthetic voice · 6.0s"),
+        ("song", "Song-like", "Melody + chords · 8.0s"),
+        ("noisy", "Noisy tone", "Tone + noise floor · 4.0s"),
+    ]
+    current_name = st.session_state.get("audio_name", "")
+    d_cols = st.columns(3)
+    for col, (kind, label, sub) in zip(d_cols, demo_defs):
+        is_current = current_name == f"synthetic: {label.lower()} demo"
+        with col:
+            with st.container(key=f"demo_card_{kind}"):
+                st.markdown(f'<div class="demo-card-icon">{wave_icon("#0891B2", 16)}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="demo-card-name">{label}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="demo-card-sub">{sub}</div>', unsafe_allow_html=True)
+                btn_label = "Loaded" if is_current else "Load demo"
+                if st.button(btn_label, key=f"demo_btn_{kind}", width="stretch", type="primary" if is_current else "secondary"):
+                    load_demo(kind)
+                    st.rerun()
+
+    # ---------------------------------------------------------------
+    # Signal overview — quick metrics as thin progress bars
+    # ---------------------------------------------------------------
+    st.markdown('<div class="section-label">Signal overview</div>', unsafe_allow_html=True)
+    if not has_audio():
+        empty_state()
+    else:
         y0, sr0 = st.session_state.audio_y, st.session_state.audio_sr
         info = st.session_state.get("_last_upload_info")
         duration = len(y0) / sr0
         mins, secs = divmod(duration, 60)
 
         with st.container(border=True):
-            st.markdown('<div class="loaded-badge">✓ AUDIO LOADED</div>', unsafe_allow_html=True)
-            st.markdown(f'<div class="loaded-name">{st.session_state.audio_name}</div>', unsafe_allow_html=True)
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Format", info.subtype.split("_")[0] if info else "Synthetic")
-            m2.metric("Sample rate", f"{sr0/1000:.1f} kHz")
-            m3.metric("Channels (source)", info.channels if info else 1)
-            m4.metric("Duration", f"{int(mins):02d}:{secs:05.2f}")
+            top1, top2 = st.columns([3, 1.3], vertical_alignment="center")
+            with top1:
+                st.markdown('<div class="loaded-badge">✓ AUDIO LOADED</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="loaded-name">{st.session_state.audio_name}</div>', unsafe_allow_html=True)
+            with top2:
+                st.metric("Duration", f"{int(mins):02d}:{secs:05.2f}")
+
             audio_player(y0, sr0)
-            if not st.session_state.get("_show_uploader") and st.button("Replace audio", key="replace_audio_btn"):
-                st.session_state["_show_uploader"] = True
-                st.rerun()
+
+            peak = float(np.max(np.abs(y0))) if len(y0) else 0.0
+            rms_val = float(np.sqrt(np.mean(y0.astype(np.float64) ** 2))) if len(y0) else 0.0
+            energy_pct = min(rms_val / 0.3, 1.0)
+            noise_ref = st.session_state.get("noise_truth")
+            snr_val = metrics.snr_db(noise_ref[0], y0) if noise_ref else None
+
+            rows = [
+                ("Peak amplitude", peak, f"{peak:.3f}"),
+                ("Energy level", energy_pct, f"{rms_val:.3f} RMS"),
+            ]
+            l1, b1, v1 = st.columns([2, 5, 1.4])
+            l1.markdown(f'<div class="overview-label">{rows[0][0]}</div>', unsafe_allow_html=True)
+            b1.progress(min(rows[0][1], 1.0))
+            v1.markdown(f'<div class="overview-value">{rows[0][2]}</div>', unsafe_allow_html=True)
+
+            l2, b2, v2 = st.columns([2, 5, 1.4])
+            l2.markdown(f'<div class="overview-label">{rows[1][0]}</div>', unsafe_allow_html=True)
+            b2.progress(rows[1][1])
+            v2.markdown(f'<div class="overview-value">{rows[1][2]}</div>', unsafe_allow_html=True)
+
+            l3, b3, v3 = st.columns([2, 5, 1.4])
+            l3.markdown('<div class="overview-label">Signal-to-noise ratio</div>', unsafe_allow_html=True)
+            if snr_val is not None:
+                b3.progress(min(max(snr_val, 0) / 40, 1.0))
+                v3.markdown(f'<div class="overview-value">{snr_val:.1f} dB</div>', unsafe_allow_html=True)
+            else:
+                b3.progress(0)
+                v3.markdown('<div class="overview-value">—</div>', unsafe_allow_html=True)
+            if snr_val is None:
+                st.caption("SNR needs a ground-truth reference — available for the synthetic noisy-tone demo, or after Noise Reduction.")
+
+            info_fmt = info.subtype.split("_")[0] if info else "Synthetic"
+            st.caption(f"{info_fmt} · {sr0/1000:.1f} kHz · {info.channels if info else 1} channel(s) source")
 
 # --------------------------------------------------------------------------
 # Page — File Information
@@ -943,7 +1077,7 @@ if has_audio():
     with st.container(key="mini_player"):
         mp1, mp2 = st.columns([5, 2])
         with mp1:
-            st.markdown(f'<div class="mini-player-name">🎧 {st.session_state.audio_name}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="mini-player-name">{st.session_state.audio_name}</div>', unsafe_allow_html=True)
             audio_player(y0, sr0)
         with mp2:
             st.markdown(f'<div class="mini-player-meta">{sr0/1000:.1f} kHz · {len(y0)/sr0:.1f} s</div>', unsafe_allow_html=True)

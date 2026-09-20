@@ -1,7 +1,14 @@
 numpy>=2.0
 scipy>=1.14
 librosa>=1.0
-matplotlib>=3.9
-streamlit>=1.60
 soundfile>=0.13
 audioread>=3.0
+
+# API layer (server/) — serves audio_toolkit to the React frontend in web/
+fastapi>=0.115
+uvicorn>=0.30
+python-multipart>=0.0.9
+
+# Legacy Streamlit UI (app.py) — superseded by web/, kept for reference
+matplotlib>=3.9
+streamlit>=1.60

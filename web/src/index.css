@@ -1,0 +1,221 @@
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------------------
+   Signal Lab design tokens — "Data-Dense Dashboard"
+   Dark is the default (audio tooling convention); light is a full sibling
+   theme, not an inversion, so contrast holds in both.
+--------------------------------------------------------------------------- */
+@theme {
+  --font-sans: 'Fira Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Fira Code', ui-monospace, monospace;
+
+  /* Dense dashboard spacing scale (8px rhythm) */
+  --spacing: 0.25rem;
+
+  --radius-card: 0.875rem;
+}
+
+:root {
+  color-scheme: dark;
+
+  --bg: #0a0e14;
+  --surface: #111823;
+  --surface-2: #16202d;
+  --surface-3: #1c2836;
+  --border: #223044;
+  --border-strong: #2c3d54;
+
+  --text: #e8eef6;
+  --text-muted: #94a7bd;
+  --text-faint: #6b7f97;
+
+  --primary: #4d94ff;
+  --primary-strong: #2f7df0;
+  --primary-soft: rgba(77, 148, 255, 0.14);
+
+  --accent: #f0a12e;
+  --accent-soft: rgba(240, 161, 46, 0.14);
+
+  --success: #2fd190;
+  --success-soft: rgba(47, 209, 144, 0.14);
+  --danger: #ff5f57;
+  --danger-soft: rgba(255, 95, 87, 0.14);
+
+  /* Data-viz series: time domain / frequency domain / detection */
+  --series-time: #4d94ff;
+  --series-freq: #f0a12e;
+  --series-detect: #2fd190;
+  --grid: rgba(255, 255, 255, 0.07);
+  --axis: #56697f;
+}
+
+/* Light theme: warm off-white paper, a bright friendly blue, and maroon as
+   the counter-accent. Every pair below is verified at 4.5:1 or better. */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  --bg: #f7f1ec;
+  --surface: #fffcfa;
+  --surface-2: #f3eae4;
+  --surface-3: #ece0d8;
+  --border: #e3d5cc;
+  --border-strong: #cdb9ad;
+
+  --text: #2b1d24;
+  --text-muted: #6a5058;
+  --text-faint: #876e76;
+
+  --primary: #2a5fd0;
+  --primary-strong: #1f47a3;
+  --primary-soft: rgba(42, 95, 208, 0.1);
+
+  --accent: #9c2f4d;
+  --accent-soft: rgba(156, 47, 77, 0.1);
+
+  --success: #0e7350;
+  --success-soft: rgba(14, 115, 80, 0.1);
+  --danger: #b32a22;
+  --danger-soft: rgba(179, 42, 34, 0.1);
+
+  --series-time: #2a5fd0;
+  --series-freq: #9c2f4d;
+  --series-detect: #0e7350;
+  --grid: rgba(43, 29, 36, 0.09);
+  --axis: #876e76;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-faint: var(--text-faint);
+  --color-primary: var(--primary);
+  --color-primary-strong: var(--primary-strong);
+  --color-primary-soft: var(--primary-soft);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+/* Tabular figures everywhere numbers are compared or updated live, so
+   values don't jitter as they change. */
+.tnum {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--primary-soft);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Scrollbars that belong to the theme rather than the OS */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  outline: none;
+  cursor: pointer;
+}
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid var(--surface);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+input[type='range']::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+input[type='range']::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid var(--surface);
+  cursor: pointer;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-in {
+  animation: fade-up 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .animate-in {
+    animation: none;
+  }
+}
