@@ -1,7 +1,6 @@
-# Audio Signal Processing Toolkit
+# 🎧 Signal Lab — Audio Signal Processing Toolkit
 
-An interactive Python toolkit demonstrating the complete audio DSP
-pipeline on real (or synthetically generated) audio:
+An interactive web app that walks through the **complete audio DSP pipeline**, from loading a file to filtering, separating and reconstructing it, with a live visualization at every step.
 
 ```
 Input → Sampling → Time-Domain Analysis → Framing → Energy Analysis →
@@ -9,335 +8,520 @@ FFT/STFT → Frequency-Domain Analysis → Filtering/Processing →
 Reconstruction → Output
 ```
 
-Built for a university-style live demo: every tab pairs a short
-explanation of the underlying math with an interactive control and a
-real visualization, and every synthetic-data tab includes a
-one-click "demo" button so it works without needing to hunt down an
-audio file beforehand (real WAV/MP3 upload is fully supported too).
+It was built for a live university demo. Each tab pairs a short explanation of the math with interactive controls and a real chart. Every tab has a one-click **demo** button, so you don't need your own audio file (WAV/MP3 upload works too).
 
-## Architecture
+> **No machine learning anywhere.** Everything is classical signal processing and standard cryptography: NumPy, SciPy, librosa. It runs on any laptop with no GPU and no model downloads.
 
-| Path             | Role                                                             |
-| ---------------- | ---------------------------------------------------------------- |
-| `audio_toolkit/` | All DSP — pure functions, no UI dependencies                      |
-| `vault/`         | Encryption + PNG steganography — independent of the DSP package   |
-| `server/`        | FastAPI layer exposing both as JSON over HTTP                     |
-| `web/`           | React + TypeScript + Tailwind frontend (canvas-rendered charts)   |
-| `sample_data/`   | Bundled demo WAV files                                            |
-| `run.sh`         | Starts the API and the web app together                           |
-| `Context/`       | Presentation, report, guides, design notes — not needed to run    |
-| `extra/`         | Legacy Streamlit UI and old notes — kept for reference only       |
+---
 
-## Setup
+## 📑 Contents
+
+- [What's inside](#-whats-inside)
+- [Quick start](#-quick-start)
+- [Features](#-features)
+  - [Analysis tabs](#analysis-tabs)
+  - [Editing and production](#editing-and-production)
+  - [Secure Vault: audio ⇄ encrypted PNG](#secure-vault-audio--encrypted-png)
+- [Project layout](#-project-layout)
+- [Sample audio](#-sample-audio)
+- [Notes and limitations](#-notes-and-limitations)
+- [📦 Complete setup guide (Windows · macOS · Linux)](#-complete-setup-guide)
+
+---
+
+## 🧩 What's inside
+
+| Part             | What it does                                                   | Built with                  |
+| ---------------- | -------------------------------------------------------------- | --------------------------- |
+| `audio_toolkit/` | All the DSP: pure functions, no UI code                        | NumPy, SciPy, librosa       |
+| `vault/`         | Audio encryption + hiding it inside a PNG (steganography)      | `cryptography`, Pillow      |
+| `server/`        | HTTP API that exposes both of the above as JSON                | FastAPI + Uvicorn           |
+| `web/`           | The user interface, with canvas-rendered charts                | React, TypeScript, Tailwind |
+| `sample_data/`   | Ready-made demo WAV files                                      | —                           |
+| `run.sh`         | Starts the API and the web app together (macOS/Linux)          | Bash                        |
+
+The app has two halves that run at the same time:
+
+- **API** at `http://localhost:8000` (Python)
+- **Web app** at `http://localhost:5173` (Node). **This is the one you open in your browser.**
+
+---
+
+## ⚡ Quick start
+
+Already have Python 3.10+ and Node.js 20.19+ installed? Then:
+
+**macOS / Linux**
 
 ```bash
+git clone https://github.com/TJ-Paul/CSE220-Signal_Project-WaveLab.git
+cd CSE220-Signal_Project-WaveLab
 python3 -m venv .venv
-source .venv/bin/activate          # Windows: .venv\Scripts\activate
+source .venv/bin/activate
 pip install -r requirements.txt
-```
-
-## Run
-
-```bash
 ./run.sh
 ```
 
-Starts the API on `http://localhost:8000` and the web app on
-`http://localhost:5173`; Ctrl+C stops both. On first run it installs the
-frontend's npm dependencies.
+**Windows (PowerShell)**: use two terminals. See [Windows setup](#-windows).
 
-To run the two halves separately:
+Then open **http://localhost:5173**.
 
-```bash
-python -m uvicorn server.main:app --port 8000 --reload   # API
-cd web && npm run dev                                    # frontend
-```
+New to any of this? Jump to the **[complete setup guide](#-complete-setup-guide)** at the bottom.
 
-The legacy Streamlit UI still runs — see [`extra/README.md`](extra/README.md).
+---
 
-## Project layout
+## ✨ Features
 
-```
-audio_toolkit/
-    io_utils.py                 Load/save audio, file metadata (duration, sr, channels, bitrate)
-    framing.py                  Split a signal into short overlapping frames + windowing
-    vad.py                      Voice Activity Detection (short-time energy + FFT speech-band feature)
-    spectral.py                 FFT, STFT, and spectrogram computation
-    filters.py                  Butterworth low/high/band-pass/band-stop filter design + application
-    separation.py               Vocal/instrumental separation (nearest-neighbor spectral filtering)
-    noise_reduction.py          Spectral-subtraction denoising
-    sampling.py                 Sampling-rate, aliasing, and reconstruction demonstrations
-    metrics.py                  MSE, SNR, correlation between two signals
-    demo_signals.py             Synthetic demo signals (speech-like, noisy tone, song-like)
+### Analysis tabs
 
-    editing.py                  Trim, cut, splice, merge, fades, crossfade laws, level matching
-    silence.py                  Silence detection (Schmitt trigger + adaptive threshold) and removal
-    timescale.py                Time stretching, pitch shifting, and transposition measurement
-    vocals.py                   Karaoke / a cappella stems with separation metrics
+| #  | Tab                                | What you'll see                                                                                                                                                                                   |
+| -- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1  | **File Info**                      | Duration, sample rate, channels, bit depth and bitrate. For MP3 the bitrate is estimated as file size ÷ duration, because libsndfile doesn't expose the encoder's bitrate.                        |
+| 2  | **Waveform**                       | The time-domain signal. You can zoom into any range.                                                                                                                                              |
+| 3  | **Sampling & Aliasing**            | Pick a tone and a sample rate on either side of Nyquist, then watch the reconstruction match the original or fold into an aliased "ghost" frequency. You can also down/upsample a file and measure what's lost. |
+| 4  | **VAD** (Voice Activity Detection) | Splits the audio into 20–30 ms frames and labels each one *Speech* or *Silence* using short-time energy plus an FFT speech-band energy ratio.                                                      |
+| 5  | **FFT Spectrum**                   | Frequency content of the whole signal or a single frame, shown next to its waveform.                                                                                                              |
+| 6  | **Spectrogram**                    | STFT magnitude over time. Adjust the FFT size and hop length to see the time/frequency resolution trade-off.                                                                                      |
+| 7  | **Filtering**                      | Butterworth low/high/band-pass/band-stop filters with a live frequency-response plot. Play or download the result.                                                                                |
+| 8  | **Vocal / Instrumental Separation** | Classical nearest-neighbour spectral filtering (related to REPET-SIM). It won't match deep-learning tools like Demucs, and the in-app **"Method & limitations"** panel explains why.               |
+| 9  | **Noise Reduction**                | Spectral subtraction. You select a noise-only region, tune oversubtraction and floor, and compare spectrograms before and after.                                                                  |
+| 10 | **Signal Comparison**              | Pick any two signals from the session and compute MSE, SNR and correlation between them.                                                                                                          |
 
-vault/
-    container.py                On-image format: header layout, metadata block, SHA-256
-    crypto.py                   scrypt key derivation + AES-256-GCM authenticated encryption
-    stego.py                    Bit packing, capacity maths, LSB embed/extract, cover generation
-    pipeline.py                 The two end-to-end directions, plus timing/metrics
-    selftest.py                 25 security and integrity checks (`python -m vault.selftest`)
+### Editing and production
 
-server/
-    main.py                     FastAPI routes over audio_toolkit and vault
-    store.py                    In-memory session store for signals
-    vault_store.py              In-memory store for vault artefacts
+Every result becomes a new signal in the session, so steps **chain**: trim a clip, fade it, then merge it with another.
 
-web/                            React + Vite frontend (src/views, src/components, src/lib)
-sample_data/                    Demo WAV files
-Context/                        Presentation, report, guides, design notes (see Context/README.md)
-extra/                          Legacy Streamlit UI, old notes (see extra/README.md)
-```
+- **✂️ Trim, Cut & Fade.** Drag across the waveform to keep or delete a region. Deleted gaps are crossfaded so the splice doesn't click. You can choose from five fade curves (linear, exponential, logarithmic, S-curve, equal-power), and each is plotted before it's applied.
+- **🔇 Silence Remover.** Detects silence with a Schmitt trigger (separate on/off thresholds, so it can't flicker at the boundary). The threshold adapts to the recording's own noise floor. A minimum silence length and edge padding keep it from over-cutting.
+- **🔗 Merge.** Joins clips in order with a crossfade or a gap. *Equal-power* crossfades suit unrelated sources, where a linear fade dips about 3 dB; *linear* suits two parts of the same take. Mixed sample rates are resampled automatically.
+- **🎚️ Speed & Pitch.** A phase vocoder changes duration without changing pitch. Resampling (varispeed) changes both together. You can also transpose by semitones at a fixed duration. **The resulting pitch shift is measured, not assumed** (see below).
+- **🎤 Karaoke & Vocals.** Produces a backing track and/or an isolated vocal, level-matched to the source for fair A/B listening. It reports vocal-band suppression, correlation between stems and energy share.
 
-Each module is self-contained and independently testable — none of
-them import a UI framework, so the DSP logic can be reused (or unit
-tested) outside the UI.
+<details>
+<summary><b>How the pitch shift is verified</b></summary>
 
-## What each tab demonstrates
+Transposing multiplies every frequency by the same ratio, which on a **log-frequency axis** is just a sideways slide. The app resamples the averaged spectrum onto a grid spaced in cents and cross-correlates the source against the result. The lag of the correlation peak, refined by parabolic interpolation, is the measured shift.
 
-1. **File Info** — duration, sample rate, channel count, and (for PCM)
-   exact bit depth/bitrate, or an estimated average bitrate for lossy
-   formats like MP3 (libsndfile doesn't expose the original encoder
-   bitrate, so it's derived from file size ÷ duration).
-2. **Waveform** — the time-domain signal, zoomable to any sub-range.
-3. **Sampling & Aliasing** — pick a tone frequency and a sampling
-   rate below/above Nyquist and watch reconstruction either match the
-   original or fold into an aliased ghost frequency; also lets you
-   downsample/upsample a loaded file and measure what's lost.
-4. **VAD** — frames the signal (20-30 ms), computes per-frame
-   short-time energy *and* an FFT-derived speech-band energy ratio,
-   and classifies each frame Speech/Silence by thresholding both.
-5. **FFT Spectrum** — frequency content of the whole signal or of a
-   single selected frame, shown side-by-side with its time-domain view.
-6. **Spectrogram** — STFT magnitude over time, with adjustable FFT
-   size/hop length to see the time/frequency resolution trade-off.
-7. **Filtering** — design and apply Butterworth low/high/band-pass/
-   band-stop filters with a live frequency-response plot, then play
-   and download the filtered audio.
-8. **Vocal/Instrumental Separation** — a classical (non-ML)
-   nearest-neighbor spectral filtering method (related to REPET-SIM).
-   **Read the in-app "Method & limitations" panel** — this is not a
-   substitute for deep-learning separators like Demucs/Spleeter, and
-   is documented as such.
-9. **Noise Reduction** — spectral subtraction using a noise profile
-   estimated from a user-selected noise-only region, with adjustable
-   oversubtraction/floor parameters and a spectrogram before/after view.
-10. **Signal Comparison** — pick any two signals produced during the
-    session (original, filtered, denoised, separated, resampled) and
-    compute MSE, SNR, and correlation between them.
+Because this matches the whole spectral envelope, it works on polyphonic music, speech and noise alike. On the bundled demos it's accurate to about 2 cents. For example, a 1.5× phase-vocoder stretch reports **+0.1 cents** (pitch preserved), while the same stretch by resampling reports **+700.2** (ideal: +702).
 
-## Editing and production
+Fundamental frequency (YIN) is shown too, but only when the pitch is stable enough to mean something. Chords and dense mixes report *"no stable pitch"* instead of a misleading number.
 
-Every result below is added to the session as a new signal, so steps
-chain: trim a clip, fade the trimmed result, merge that with another.
+</details>
 
-- **Trim, Cut & Fade** — drag across the waveform to select a region,
-  then keep it or delete it. Deleting splices together material that was
-  seconds apart, which is a step discontinuity and therefore a click, so
-  every interior seam is crossfaded. Fades offer five gain curves
-  (linear, exponential, logarithmic, S-curve, equal-power) with the
-  chosen curve plotted before it is applied.
-- **Silence Remover** — reduces the signal to a frame-rate RMS envelope
-  and gates it with a Schmitt trigger (separate on/off thresholds, so
-  the detector cannot chatter around the boundary). The threshold is
-  derived from the recording's own level distribution rather than fixed,
-  because a clean studio take and a noisy phone recording put their
-  noise floors 40 dB apart. Two guards prevent over-editing: a minimum
-  silence length, and padding kept at each end of a cut.
-- **Merge** — joins clips in a chosen order with a crossfade or a gap,
-  and exposes both crossfade laws: equal-power for unrelated sources
-  (whose powers add, so a linear fade would dip ~3 dB mid-join) and
-  linear for two pieces of the same take. Mixed sample rates are
-  resampled to the first clip's rate before joining.
-- **Speed & Pitch** — retime with a phase vocoder (duration changes,
-  pitch does not) or by resampling (varispeed: both scale together), and
-  transpose in semitones while holding duration fixed. **The effect on
-  pitch is then measured, not asserted** — see below.
-- **Karaoke & Vocals** — the application layer over `separation.py`,
-  producing a backing track, an isolated vocal, or both, level-matched
-  to the source so an A/B compares the processing rather than the gain.
-  Reports vocal-band suppression, inter-stem correlation and energy
-  share, plus correlation against ground truth on the song demo.
+### Secure Vault: audio ⇄ encrypted PNG
 
-### Verifying a pitch transform
-
-Claims about pitch are checked against the audio. A transposition
-multiplies every frequency by the same ratio, and multiplication is
-addition on a logarithmic axis — so transposing slides the whole
-spectrum sideways along a log-frequency axis without changing its shape.
-Resampling the averaged spectrum onto a grid spaced in cents and
-cross-correlating source against result recovers the shift as the lag of
-the correlation peak, refined by parabolic interpolation.
-
-Because it matches the spectral envelope rather than any single partial,
-it needs no note to be present and works on polyphonic music, speech and
-noise alike. Measured against known ground truth on the bundled demos it
-lands within ~2 cents: a 1.5× phase-vocoder stretch reports +0.1 cents
-(pitch preserved) while the same stretch by resampling reports +700.2
-against an ideal +702.
-
-Fundamental frequency (YIN) is reported alongside, but only when the
-material has a stable enough pitch for the number to mean anything — the
-F0 track's interquartile spread is checked first, and a chord or dense
-mix is reported as "no stable pitch" rather than given a median of
-several different notes.
-
-## Secure Vault — audio ⇄ encrypted PNG
-
-A separate subsystem (`vault/`) that encrypts an audio file and hides the
-ciphertext in the low bits of a PNG, then recovers the original file
-**byte for byte**.
+A separate subsystem (`vault/`) that **encrypts an audio file, hides it inside a PNG image**, and later recovers the original **byte for byte**.
 
 ```
-audio file → SHA-256 → +metadata → AES-256-GCM → header+ciphertext
-           → bitstream → LSB into RGB pixels → PNG
+Encode:  audio → SHA-256 → +metadata → AES-256-GCM → header+ciphertext
+               → bitstream → LSB into RGB pixels → PNG
 
-PNG → LSB extraction → header → AES-256-GCM (tag verified)
-    → metadata+file → SHA-256 compared → the original file
+Decode:  PNG → LSB extraction → header → AES-256-GCM (tag verified)
+             → metadata+file → SHA-256 compared → original file
 ```
 
-### The three pieces, and what each one actually provides
+**Three layers, three jobs:**
 
-They are routinely conflated, so it is worth being precise:
+| Layer                                    | Provides            | Without it…                                                       |
+| ---------------------------------------- | ------------------- | ----------------------------------------------------------------- |
+| **Encryption** (AES-256-GCM)             | Confidentiality     | Anyone who knows the trick reads the hidden audio directly.       |
+| **Steganography** (LSB)                  | Concealment         | The data is obviously a secret file, not an innocent image.       |
+| **Authentication** (GCM tag + SHA-256)   | Integrity           | A flipped bit gives plausible-looking garbage instead of an error. |
 
-- **Encryption** (AES-256-GCM) provides *confidentiality*. Without it,
-  hiding data in an image is obscurity: anyone who suspects the
-  technique reads the payload straight out.
-- **Steganography** (LSB) provides *concealment*, not confidentiality.
-  It hides that a message exists, and makes the container a PNG.
-- **Authentication** (the 128-bit GCM tag) and the **SHA-256** digest
-  provide *integrity*. Without them a flipped bit yields plausible
-  garbage that the decoder would hand over as if it were audio.
+<details>
+<summary><b>Design details: encryption order, container, key derivation, capacity</b></summary>
 
-Remove any one and the system fails at something the other two cannot
-cover for.
+**Encrypt first, then embed.** Even an attacker who extracts every hidden bit perfectly only gets ciphertext. The UI's byte histogram shows this: the source WAV has about 6.7 bits of entropy per byte with spikes at 0x00/0xFF, while the ciphertext sits at 7.999 out of 8, completely flat.
 
-### Order matters: encrypt first, then embed
+**Container format.** There is a 48-byte cleartext header (magic `SGVL`, version, scrypt params, salt, nonce, length) followed by the ciphertext. The filename, size and SHA-256 are kept *inside* the ciphertext, because each of them leaks information: a cleartext hash would let anyone confirm a guessed plaintext. The header is still authenticated as AES-GCM *associated data*, so tampering with it causes a clean failure.
 
-Embedding a recognisable file and calling it secure is the classic
-mistake. Encrypting first means an attacker who knows exactly where to
-look, and extracts every low bit perfectly, is left with ciphertext.
+**Key derivation.** It uses scrypt (memory-hard), not plain SHA-256 or PBKDF2. At N = 2¹⁵, r = 8 each password guess costs about 32 MB and tens of milliseconds, which is unnoticeable once and ruinous a billion times over. A fresh salt and nonce are drawn for every encryption.
 
-The byte-value histogram in the UI is the visible proof: the source WAV
-measures about 6.7 bits of entropy per byte with heavy spikes at 0x00
-and 0xFF (PCM samples cluster near zero), while the ciphertext measures
-7.999 of a possible 8 and sits flat on the uniform line. No waveform, no
-format signature, no structure survives.
-
-### Container format
-
-A 48-byte cleartext header — magic `SGVL`, version, scrypt parameters,
-salt, nonce, payload length — followed by the AES-GCM ciphertext.
-
-The filename, original size and SHA-256 digest are **not** in the
-header; they live inside the ciphertext, because each one leaks. A
-filename is often the most sensitive part of a file, and a cleartext
-digest turns the container into an oracle: anyone who guesses the
-plaintext can hash their guess and confirm it without ever attacking the
-password.
-
-The header is nonetheless passed to AES-GCM as **associated data** —
-authenticated but not encrypted — so editing the salt, nonce or length
-to steer the decoder produces an authentication failure rather than a
-decoder that quietly complies.
-
-### Key derivation
-
-scrypt, not a bare SHA-256 of the password and not PBKDF2. A password is
-short and structured where AES wants 32 uniform bytes, so it has to be
-stretched; PBKDF2 is only computation-hard, which is exactly the
-workload custom hardware parallelises best. scrypt is additionally
-*memory*-hard — at N = 2¹⁵, r = 8 each guess costs roughly 32 MB and tens
-of milliseconds, which is unnoticeable once and ruinous a billion times
-over. Salt and nonce are drawn fresh from the OS CSPRNG per encryption.
-
-### Capacity
+**Capacity.**
 
 ```
 capacity_bits  = width × height × 3 channels × bits_per_channel
 capacity_bytes = capacity_bits / 8
 ```
 
-The image is sized to the payload and made square-ish, since for a fixed
-area a square has the smallest maximum dimension. A 192 KB WAV lands in a
-717 × 716 image at 99.9% utilisation.
+The image is sized to fit the payload in a near-square shape. A 192 KB WAV becomes a 717 × 716 image at 99.9% utilisation. The generated cover is random noise on purpose: its low bits are already uniform, so embedding leaves no statistical trace for chi-squared or RS analysis to find. The trade-off is that the PNG is about 8× the audio size, and the UI reports this.
 
-The generated cover is uniform random noise, and that is a deliberate
-choice rather than a lazy one: the low bits of a smooth image are *not*
-random, so replacing them with ciphertext leaves the statistical
-signature that classical LSB attacks (chi-squared, RS analysis) look
-for. Noise has LSBs that are already uniform, so embedding changes the
-image's statistics not at all. The cost is that noise is incompressible,
-so the PNG runs about 8× the audio size — a real trade the UI reports
-rather than hides.
+**Things to know:**
 
-### Running the self-test
+- **Use PNG, never JPEG.** JPEG compression changes pixel values slightly, which destroys a payload hidden in the lowest bit. (The in-app preview *is* a downscaled JPEG. It's for display only, and the UI says so.)
+- The payload is **not compressed** before encryption. That would save almost nothing, and it would open the door to CRIME/BREACH-style length leaks.
+- A failed decryption returns **nothing**: no partial output, no "best effort" audio.
+
+</details>
+
+**Self-test:** 25 checks (round trip, wrong password, flipped bit, edited header, capacity maths, entropy, key derivation). You can run them from the UI's **Security & integrity tests** panel or from the terminal:
 
 ```bash
 python -m vault.selftest
 ```
 
-25 checks covering bit-for-bit round trip, wrong password, a single
-flipped bit, an edited header, an image with no container, user-supplied
-covers, capacity arithmetic at 1 and 2 bits per channel, ciphertext
-entropy, and key derivation. All of them are also runnable from the UI's
-**Security & integrity tests** panel.
+---
 
-### Notes
+## 🗂️ Project layout
 
-- PNG is mandatory, JPEG is fatal. JPEG quantises in the frequency
-  domain and will change a pixel by a step or two — invisible to a
-  viewer, and total destruction for a payload in the lowest bit. The
-  in-app image preview is deliberately downscaled and served as JPEG for
-  exactly this reason: it is a picture, not the artefact, and the UI says
-  so.
-- The payload is **not** compressed before encryption. Every accepted
-  format is already compressed or noise-like, so DEFLATE would save a
-  fraction of a percent — and compressing before encrypting makes
-  ciphertext length depend on plaintext content, which is the ingredient
-  behind CRIME/BREACH-style attacks.
-- A failed decryption returns nothing. There is no partial output and no
-  "best effort" audio.
+```
+audio_toolkit/
+    io_utils.py          Load/save audio, file metadata
+    framing.py           Split a signal into overlapping frames + windowing
+    vad.py               Voice Activity Detection
+    spectral.py          FFT, STFT, spectrogram
+    filters.py           Butterworth filter design + application
+    separation.py        Vocal/instrumental separation
+    noise_reduction.py   Spectral-subtraction denoising
+    sampling.py          Sampling, aliasing, reconstruction demos
+    metrics.py           MSE, SNR, correlation
+    demo_signals.py      Synthetic demo signals
+    editing.py           Trim, cut, splice, merge, fades, crossfades
+    silence.py           Silence detection and removal
+    timescale.py         Time stretch, pitch shift, pitch measurement
+    vocals.py            Karaoke / a cappella stems
+    stereo_sep/          Classical stereo source separation (has its own README)
 
-## Sample audio
+vault/
+    container.py         On-image format: header, metadata, SHA-256
+    crypto.py            scrypt key derivation + AES-256-GCM
+    stego.py             Bit packing, capacity, LSB embed/extract
+    pipeline.py          End-to-end encode/decode + metrics
+    selftest.py          25 security and integrity checks
 
-`sample_data/` has pre-rendered WAV versions of the three synthetic
-demos (speech-like, noisy tone + its clean reference, song-like
-mixture) — generated by `audio_toolkit/demo_signals.py`. Use these to
-test the file-upload path itself, or regenerate them anytime with:
+server/
+    main.py              FastAPI routes
+    store.py             In-memory store for session signals
+    vault_store.py       In-memory store for vault files
+
+web/                     React + Vite frontend (src/views, src/components, src/lib)
+sample_data/             Demo WAV files
+requirements.txt         Python dependencies
+run.sh                   One-command launcher (macOS/Linux)
+```
+
+None of the Python modules import a UI framework, so the DSP code can be reused or unit-tested on its own.
+
+---
+
+## 🎵 Sample audio
+
+`sample_data/` contains four ready-made WAV files generated by `audio_toolkit/demo_signals.py`:
+
+- `speech_like_demo.wav`
+- `noisy_tone_demo.wav` + `noisy_tone_demo_clean_reference.wav`
+- `song_like_demo_mixture.wav`
+
+Use them to try the file-upload path. To regenerate one:
 
 ```bash
-python3 -c "
+python -c "
 from audio_toolkit import demo_signals, io_utils
 y, sr = demo_signals.generate_speech_like_demo(duration=6.0)
 io_utils.save_audio('sample_data/speech_like_demo.wav', y, sr)
 "
 ```
 
-## Notes and limitations
+---
 
-- Everything here is classical signal processing and conventional
-  cryptography (documented in each module's docstring), not machine
-  learning — separation, denoising, the phase vocoder, pitch shifting and
-  the vault all included. There are no models, no training and no
-  inference anywhere. Dependencies stay at
-  NumPy/SciPy/librosa/SoundFile/Pillow/cryptography, runnable anywhere
-  without a GPU or large model downloads, at the cost of
-  separation/denoising quality compared to trained neural models.
-- No cryptographic primitive is homemade. AES-256-GCM comes from the
-  `cryptography` library and scrypt/SHA-256 from the Python standard
-  library; `vault/` composes them and explains the composition.
-- Time stretching and pitch shifting inherit the phase vocoder's
-  artefacts: transients smear across the frames they were stretched
-  over, and harmonics can lose phase alignment, heard as faint
-  chorusing. Both grow with the stretch factor, so 0.8×–1.25× is
-  near-transparent while 0.5× or 2× announces itself. Resampling has no
-  such artefacts because nothing is estimated — it just moves the pitch
-  too.
-- MP3 reading uses libsndfile (via `soundfile`)/`audioread`; exporting
-  processed audio always writes WAV (lossless, no external encoder
-  dependency required).
+## 📝 Notes and limitations
+
+- **Classical methods only.** Separation, denoising, the phase vocoder and the vault use no models, training or inference. It runs anywhere, but separation and denoising quality is below modern neural tools.
+- **No homemade crypto.** AES-256-GCM comes from the `cryptography` library, and scrypt/SHA-256 from Python's standard library.
+- **Phase vocoder artefacts.** Big stretches smear transients and can add faint chorusing. 0.8×–1.25× sounds nearly transparent, while 0.5× or 2× is audible. Resampling has no such artefacts, but it changes pitch too.
+- **Export is always WAV.** MP3 files can be read (via `soundfile`/`audioread`), but processed audio is saved as lossless WAV, so no external encoder is needed.
+
+---
+
+## 📦 Complete setup guide
+
+Step-by-step instructions for a fresh machine, from cloning the repo to seeing the app in your browser.
+
+### What you need
+
+| Tool        | Minimum version | Check with          |
+| ----------- | --------------- | ------------------- |
+| **Git**     | any recent      | `git --version`     |
+| **Python**  | **3.10** or newer | `python --version` (Windows) / `python3 --version` (macOS/Linux) |
+| **Node.js** | **20.19** or newer (22 LTS recommended) | `node --version` |
+| **npm**     | comes with Node | `npm --version`     |
+
+You'll run these commands in a terminal: **PowerShell** on Windows, **Terminal** on macOS, or any terminal on Linux.
+
+---
+
+### 🪟 Windows
+
+#### Step 1: Install the tools
+
+1. **Git**: download from <https://git-scm.com/download/win> and run the installer with the default options.
+2. **Python**: download from <https://www.python.org/downloads/>.
+   ⚠️ On the first installer screen, **tick "Add python.exe to PATH"** before clicking *Install Now*.
+3. **Node.js**: download the **LTS** installer from <https://nodejs.org/> and run it with the default options.
+4. **Close and reopen PowerShell** so it picks up the new tools, then check them:
+
+   ```powershell
+   git --version
+   python --version
+   node --version
+   npm --version
+   ```
+
+   All four should print a version number.
+
+#### Step 2: Clone the repository
+
+```powershell
+cd $HOME\Documents
+git clone https://github.com/TJ-Paul/CSE220-Signal_Project-WaveLab.git
+cd CSE220-Signal_Project-WaveLab
+```
+
+#### Step 3: Create a Python virtual environment
+
+A virtual environment keeps this project's packages separate from the rest of your system.
+
+```powershell
+python -m venv .venv
+```
+
+#### Step 4: Activate it
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+Your prompt should now start with `(.venv)`.
+
+> **Got a red "running scripts is disabled on this system" error?** Run this once, answer **Y**, then try activating again:
+>
+> ```powershell
+> Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+> ```
+>
+> Using **Command Prompt** (cmd) instead of PowerShell? Activate with `.venv\Scripts\activate.bat`.
+
+#### Step 5: Install the Python packages
+
+```powershell
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+This takes a minute or two.
+
+#### Step 6: Install the web app's packages
+
+```powershell
+cd web
+npm install
+cd ..
+```
+
+#### Step 7: Start the app (two terminals)
+
+`run.sh` is a Bash script and won't run in PowerShell, so start the two halves separately.
+
+**Terminal 1: API.** From the project folder, with `(.venv)` active:
+
+```powershell
+python -m uvicorn server.main:app --port 8000 --reload
+```
+
+Wait for `Application startup complete.`
+
+**Terminal 2: web app.** Open a **new** PowerShell window:
+
+```powershell
+cd $HOME\Documents\CSE220-Signal_Project-WaveLab\web
+npm run dev
+```
+
+#### Step 8: Open it
+
+Go to **<http://localhost:5173>** in your browser. 🎉
+
+To stop the app, press **Ctrl + C** in both terminals.
+
+> 💡 If you have **Git Bash** (installed with Git) or **WSL**, `./run.sh` works there too. In Git Bash, activate with `source .venv/Scripts/activate`.
+
+---
+
+### 🍎 macOS
+
+#### Step 1: Install the tools
+
+The easiest way is with [Homebrew](https://brew.sh/).
+
+1. Install Homebrew if you don't have it (paste into Terminal and follow the prompts):
+
+   ```bash
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+   ```
+
+2. Install Git, Python and Node:
+
+   ```bash
+   brew install git python node
+   ```
+
+   *(Prefer installers? Get Python from <https://www.python.org/downloads/> and Node LTS from <https://nodejs.org/> instead.)*
+
+3. Check them:
+
+   ```bash
+   git --version
+   python3 --version
+   node --version
+   npm --version
+   ```
+
+#### Step 2: Clone the repository
+
+```bash
+cd ~/Documents
+git clone https://github.com/TJ-Paul/CSE220-Signal_Project-WaveLab.git
+cd CSE220-Signal_Project-WaveLab
+```
+
+#### Step 3: Create and activate a virtual environment
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+Your prompt should now start with `(.venv)`.
+
+#### Step 4: Install the Python packages
+
+```bash
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+#### Step 5: Start the app
+
+```bash
+chmod +x run.sh     # only needed the first time
+./run.sh
+```
+
+On the first run it installs the web app's npm packages automatically, which takes a minute. When you see the **Signal Lab** banner, it's ready.
+
+#### Step 6: Open it
+
+Go to **<http://localhost:5173>**. 🎉
+
+Press **Ctrl + C** once to stop both halves.
+
+---
+
+### 🐧 Linux
+
+These commands are for **Ubuntu/Debian**. Other distros are listed after Step 1.
+
+#### Step 1: Install the tools
+
+```bash
+sudo apt update
+sudo apt install -y git python3 python3-venv python3-pip curl lsof
+```
+
+Ubuntu's own `nodejs` package is often too old for this project, so install Node LTS from NodeSource:
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+sudo apt install -y nodejs
+```
+
+*(Or use [nvm](https://github.com/nvm-sh/nvm): `nvm install --lts`.)*
+
+<details>
+<summary>Fedora / Arch</summary>
+
+```bash
+# Fedora
+sudo dnf install -y git python3 python3-pip nodejs npm lsof
+
+# Arch
+sudo pacman -S --needed git python python-pip nodejs npm lsof
+```
+
+</details>
+
+Check everything:
+
+```bash
+git --version
+python3 --version
+node --version
+npm --version
+```
+
+#### Step 2: Clone the repository
+
+```bash
+cd ~
+git clone https://github.com/TJ-Paul/CSE220-Signal_Project-WaveLab.git
+cd CSE220-Signal_Project-WaveLab
+```
+
+#### Step 3: Create and activate a virtual environment
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+#### Step 4: Install the Python packages
+
+```bash
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+#### Step 5: Start the app
+
+```bash
+chmod +x run.sh     # only needed the first time
+./run.sh
+```
+
+#### Step 6: Open it
+
+Go to **<http://localhost:5173>**. 🎉
+
+Press **Ctrl + C** to stop.
+
+---
+
+### ▶️ Running it again later
+
+You only need to install once. Next time:
+
+| OS                | Commands (from the project folder)                                                                                                             |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **macOS / Linux** | `source .venv/bin/activate` then `./run.sh`                                                                                                     |
+| **Windows**       | Terminal 1: `.venv\Scripts\Activate.ps1` then `python -m uvicorn server.main:app --port 8000 --reload`<br>Terminal 2: `cd web` then `npm run dev` |
+
+### ✅ Check that it's working
+
+- **<http://localhost:8000/api/health>** should respond, which means the API is up.
+- **<http://localhost:5173>** should show the app. Click any tab's **demo** button.
+- Optional: `python -m vault.selftest` should report all 25 checks passing.
+
+### 🛠️ Troubleshooting
+
+| Problem                                                                   | Fix                                                                                                                                                                         |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `python` / `python3` / `node` **not found**                               | The tool isn't installed or isn't on PATH. Reinstall it (on Windows, tick *Add to PATH*), then **open a new terminal**.                                                  |
+| `error: .venv not found` from `run.sh`                                    | You skipped creating the virtual environment. Run Step 3, then try again.                                                                                                   |
+| `ModuleNotFoundError: No module named 'fastapi'` (or numpy, librosa…)     | The virtual environment isn't active. Activate it (`(.venv)` should appear in your prompt) and re-run `pip install -r requirements.txt`.                                  |
+| **The page loads but every action fails** / "network error"               | The API isn't running. Make sure the terminal with `uvicorn` is still open and shows no errors.                                                                             |
+| `Address already in use` on port 8000 or 5173                             | Something else is using the port. On macOS/Linux, `run.sh` frees it automatically. On Windows, close the old terminal, or find the process with `netstat -ano \| findstr :8000` and end it in Task Manager. |
+| `Permission denied: ./run.sh`                                             | Run `chmod +x run.sh` once.                                                                                                                                                 |
+| `npm install` fails or Vite complains about the Node version              | Your Node.js is too old. Install the current **LTS** (20.19+ required).                                                                                                    |
+| `ensurepip is not available` (Linux)                                      | Install the venv package: `sudo apt install python3-venv`, then delete `.venv` and create it again.                                                                         |
+| `OSError: sndfile library not found` (Linux, uncommon)                    | `sudo apt install libsndfile1`                                                                                                                                              |
+| Installing a package fails with a compiler error                          | Your Python is probably too new or too old for a prebuilt wheel. Use Python **3.11–3.13**, recreate `.venv`, and reinstall.                                               |
