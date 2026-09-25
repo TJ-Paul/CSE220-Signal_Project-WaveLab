@@ -1,14 +1,27 @@
 import type {
   CompareData,
   DenoiseData,
+  FadeData,
+  FadeShapes,
   FftData,
   FilterData,
+  MergeData,
+  PitchData,
   ResampleData,
   SamplingDemo,
   SeparateData,
   SignalSummary,
+  SilenceData,
   SpectrogramData,
+  SpeedData,
+  TrimData,
   VadData,
+  VaultDecodeData,
+  VaultEncodeData,
+  VaultInspectData,
+  VaultPixelData,
+  VaultTamperData,
+  VocalsData,
   WaveformData,
 } from './types'
 
@@ -108,6 +121,100 @@ export const api = {
     request<SamplingDemo>(`/sampling/demo?freq=${freq}&fs=${fs}&duration=${duration}`),
 
   compare: (a: string, b: string) => request<CompareData>(`/compare?a=${a}&b=${b}`),
+
+  /* Editing ---------------------------------------------------------------- */
+
+  trim: (id: string, body: { start: number; end: number; mode: 'keep' | 'cut' }) =>
+    post<TrimData>(`/signals/${id}/trim`, body),
+
+  fade: (
+    id: string,
+    body: { fadeInS: number; fadeOutS: number; shape: string; normalize?: boolean },
+  ) => post<FadeData>(`/signals/${id}/fade`, body),
+
+  fadeShapes: () => request<FadeShapes>('/fades/shapes'),
+
+  merge: (body: {
+    ids: string[]
+    crossfadeS: number
+    gapS: number
+    law: string
+    normalize: boolean
+    name?: string
+  }) => post<MergeData>('/merge', body),
+
+  silence: (
+    id: string,
+    body: {
+      thresholdDb: number | null
+      minSilenceS: number
+      padS: number
+      hysteresisDb: number
+      apply?: boolean
+    },
+  ) => post<SilenceData>(`/signals/${id}/silence`, body),
+
+  /* Time, pitch and vocals ------------------------------------------------- */
+
+  speed: (id: string, body: { rate: number; preservePitch: boolean }) =>
+    post<SpeedData>(`/signals/${id}/speed`, body),
+
+  pitch: (id: string, body: { semitones: number }) =>
+    post<PitchData>(`/signals/${id}/pitch`, body),
+
+  vocals: (
+    id: string,
+    body: { preset: string; outputs: 'karaoke' | 'acapella' | 'both'; levelMatch: boolean },
+  ) => post<VocalsData>(`/signals/${id}/vocals`, body),
+
+  /* Secure vault ----------------------------------------------------------- */
+
+  vaultEncode: (opts: {
+    file: File
+    password: string
+    bitsPerChannel: number
+    cover?: File | null
+  }) => {
+    const form = new FormData()
+    form.append('file', opts.file)
+    form.append('password', opts.password)
+    form.append('bitsPerChannel', String(opts.bitsPerChannel))
+    if (opts.cover) form.append('cover', opts.cover)
+    return request<VaultEncodeData>('/vault/encode', { method: 'POST', body: form })
+  },
+
+  vaultInspect: (image: File, bitsPerChannel: number) => {
+    const form = new FormData()
+    form.append('image', image)
+    form.append('bitsPerChannel', String(bitsPerChannel))
+    return request<VaultInspectData>('/vault/inspect', { method: 'POST', body: form })
+  },
+
+  vaultDecode: (opts: { image: File; password: string; bitsPerChannel: number }) => {
+    const form = new FormData()
+    form.append('image', opts.image)
+    form.append('password', opts.password)
+    form.append('bitsPerChannel', String(opts.bitsPerChannel))
+    return request<VaultDecodeData>('/vault/decode', { method: 'POST', body: form })
+  },
+
+  vaultPixels: (imageId: string, offset: number, count: number) =>
+    request<VaultPixelData>(`/vault/pixels/${imageId}?offset=${offset}&count=${count}`),
+
+  vaultTamper: (imageId: string, pixels: number) =>
+    post<VaultTamperData>('/vault/tamper', { imageId, pixels }),
+
+  vaultImageUrl: (imageId: string) => `${BASE}/vault/image/${imageId}`,
+  vaultPreviewUrl: (imageId: string) => `${BASE}/vault/preview/${imageId}`,
+  vaultFileUrl: (fileId: string) => `${BASE}/vault/file/${fileId}`,
+
+  /** Fetch a stego PNG back as a File, so a just-encoded image can be fed
+   *  straight into the decode path without a manual download and re-upload. */
+  vaultImageAsFile: async (imageId: string, name: string): Promise<File> => {
+    const res = await fetch(`${BASE}/vault/image/${imageId}`)
+    if (!res.ok) throw new ApiError('Could not read the encoded image', res.status)
+    return new File([await res.blob()], name, { type: 'image/png' })
+  },
 }
 
 export { ApiError }

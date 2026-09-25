@@ -10,15 +10,25 @@ import { SignalProvider, useSignals } from './state/SignalContext'
 import { CompareView } from './views/CompareView'
 import { DashboardView } from './views/DashboardView'
 import { DenoiseView } from './views/DenoiseView'
+import { EditorView } from './views/EditorView'
 import { FilterView } from './views/FilterView'
+import { MergeView } from './views/MergeView'
 import { SamplingView } from './views/SamplingView'
 import { SeparationView } from './views/SeparationView'
+import { SilenceView } from './views/SilenceView'
 import { SpectrogramView } from './views/SpectrogramView'
 import { SpectrumView } from './views/SpectrumView'
+import { TimePitchView } from './views/TimePitchView'
 import { VadView } from './views/VadView'
+import { VaultView } from './views/VaultView'
+import { VocalStudioView } from './views/VocalStudioView'
 import { WaveformView } from './views/WaveformView'
 
 type Theme = 'dark' | 'light'
+
+/** Views that stand on their own: the dashboard loads signals, the sampling
+ *  demo synthesises its own, and merge works across the whole session. */
+const SIGNAL_FREE_VIEWS: ViewId[] = ['dashboard', 'sampling', 'merge', 'vault']
 
 function useTheme(): [Theme, () => void] {
   const [theme, setTheme] = useState<Theme>(
@@ -47,17 +57,7 @@ function Workspace() {
 
   // Views that need a signal fall back to the dashboard if it disappears.
   useEffect(() => {
-    const needsSignal: ViewId[] = [
-      'waveform',
-      'spectrum',
-      'spectrogram',
-      'vad',
-      'filter',
-      'separation',
-      'denoise',
-      'compare',
-    ]
-    if (!active && needsSignal.includes(view)) setView('dashboard')
+    if (!active && !SIGNAL_FREE_VIEWS.includes(view)) setView('dashboard')
   }, [active, view])
 
   const navigate = useCallback((next: ViewId) => {
@@ -107,6 +107,8 @@ function Workspace() {
           <div className="mx-auto max-w-[1400px]">
             {view === 'dashboard' && <DashboardView onNavigate={navigate} />}
             {view === 'sampling' && <SamplingView signal={active} />}
+            {view === 'merge' && <MergeView signals={signals} activeId={active?.id ?? null} />}
+            {view === 'vault' && <VaultView />}
 
             {active ? (
               <>
@@ -117,11 +119,14 @@ function Workspace() {
                 {view === 'filter' && <FilterView key={active.id} signal={active} />}
                 {view === 'separation' && <SeparationView key={active.id} signal={active} />}
                 {view === 'denoise' && <DenoiseView key={active.id} signal={active} />}
+                {view === 'editor' && <EditorView key={active.id} signal={active} />}
+                {view === 'silence' && <SilenceView key={active.id} signal={active} />}
+                {view === 'timepitch' && <TimePitchView key={active.id} signal={active} />}
+                {view === 'vocals' && <VocalStudioView key={active.id} signal={active} />}
                 {view === 'compare' && <CompareView signals={signals} activeId={active.id} />}
               </>
             ) : (
-              view !== 'dashboard' &&
-              view !== 'sampling' && (
+              !SIGNAL_FREE_VIEWS.includes(view) && (
                 <ViewBody>
                   <ViewHeader title="No signal loaded" />
                   <EmptyState

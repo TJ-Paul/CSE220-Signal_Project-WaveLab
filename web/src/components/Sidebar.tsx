@@ -2,14 +2,20 @@ import {
   Activity,
   AudioLines,
   BarChart3,
+  Combine,
+  Eraser,
   Filter,
   Gauge,
   GitCompare,
   Grid2x2,
   LayoutDashboard,
+  Mic2,
   Moon,
   Scissors,
+  ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
+  Split,
   Sun,
   Waves,
 } from 'lucide-react'
@@ -39,12 +45,26 @@ const NAV: { group: string; items: NavItem[] }[] = [
     ],
   },
   {
+    group: 'Editing',
+    items: [
+      { id: 'editor', label: 'Trim, Cut & Fade', icon: Scissors, requiresSignal: true },
+      { id: 'silence', label: 'Silence Remover', icon: Eraser, requiresSignal: true },
+      { id: 'merge', label: 'Merge', icon: Combine },
+      { id: 'timepitch', label: 'Speed & Pitch', icon: SlidersHorizontal, requiresSignal: true },
+    ],
+  },
+  {
     group: 'Processing',
     items: [
       { id: 'filter', label: 'Filtering', icon: Filter, requiresSignal: true },
-      { id: 'separation', label: 'Separation', icon: Scissors, requiresSignal: true },
       { id: 'denoise', label: 'Noise Reduction', icon: Sparkles, requiresSignal: true },
+      { id: 'vocals', label: 'Karaoke & Vocals', icon: Mic2, requiresSignal: true },
+      { id: 'separation', label: 'Separation (analysis)', icon: Split, requiresSignal: true },
     ],
+  },
+  {
+    group: 'Security',
+    items: [{ id: 'vault', label: 'Secure Vault', icon: ShieldCheck }],
   },
   {
     group: 'Output',

@@ -1,5 +1,5 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react'
-import { Loader2 } from 'lucide-react'
+import { useId, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 
 export function cx(...parts: (string | false | null | undefined)[]): string {
   return parts.filter(Boolean).join(' ')
@@ -290,6 +290,191 @@ export function Notice({
     <div className={cx('rounded-xl border px-3.5 py-2.5 text-[13px]', tones[tone])}>
       {title && <div className="mb-0.5 font-semibold">{title}</div>}
       <div className="text-muted">{children}</div>
+    </div>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/* SegmentedControl / Toggle                                                   */
+/* -------------------------------------------------------------------------- */
+
+/** A small set of mutually exclusive choices, all visible at once — used
+ *  where a <select> would hide the alternatives behind a click. */
+export function SegmentedControl<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  value: T
+  options: { value: T; label: string; hint?: string }[]
+  onChange: (v: T) => void
+}) {
+  return (
+    <div>
+      <div className="mb-1.5 text-xs font-medium text-muted">{label}</div>
+      <div role="group" aria-label={label} className="flex gap-1 rounded-lg bg-surface-2 p-1">
+        {options.map((o) => {
+          const active = o.value === value
+          return (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => onChange(o.value)}
+              aria-pressed={active}
+              title={o.hint}
+              className={cx(
+                'flex-1 cursor-pointer rounded-md px-2 py-1.5 text-[12px] font-medium',
+                'transition-colors duration-150',
+                active
+                  ? 'bg-primary text-white shadow-[0_1px_3px_rgb(0_0_0/0.2)]'
+                  : 'text-muted hover:bg-surface-3 hover:text-text',
+              )}
+            >
+              {o.label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+export function Toggle({
+  label,
+  checked,
+  onChange,
+  hint,
+}: {
+  label: string
+  checked: boolean
+  onChange: (v: boolean) => void
+  hint?: string
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-2.5">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={cx(
+          'mt-0.5 h-[18px] w-8 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-150',
+          checked ? 'bg-primary' : 'bg-surface-3',
+        )}
+      >
+        <span
+          aria-hidden
+          className={cx(
+            'block h-[14px] w-[14px] rounded-full bg-white transition-transform duration-150',
+            checked && 'translate-x-[14px]',
+          )}
+        />
+      </button>
+      <span className="min-w-0">
+        <span className="block text-xs font-medium text-text">{label}</span>
+        {hint && <span className="block text-[11px] text-faint">{hint}</span>}
+      </span>
+    </label>
+  )
+}
+
+/* -------------------------------------------------------------------------- */
+/* PasswordInput / Meter                                                       */
+/* -------------------------------------------------------------------------- */
+
+export function PasswordInput({
+  label,
+  value,
+  onChange,
+  hint,
+  placeholder = 'Enter a password',
+  autoComplete = 'off',
+  onSubmit,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  hint?: string
+  placeholder?: string
+  autoComplete?: string
+  onSubmit?: () => void
+}) {
+  const id = useId()
+  const [visible, setVisible] = useState(false)
+  return (
+    <div>
+      <label htmlFor={id} className="text-xs font-medium text-muted">
+        {label}
+      </label>
+      <div className="relative mt-1.5">
+        <input
+          id={id}
+          type={visible ? 'text' : 'password'}
+          value={value}
+          autoComplete={autoComplete}
+          placeholder={placeholder}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && onSubmit) onSubmit()
+          }}
+          className={cx(
+            'h-10 w-full rounded-lg border border-border bg-surface-2 pl-3 pr-10',
+            'font-mono text-sm text-text transition-colors',
+            'placeholder:font-sans placeholder:text-faint hover:border-border-strong',
+          )}
+        />
+        <button
+          type="button"
+          onClick={() => setVisible((v) => !v)}
+          aria-label={visible ? 'Hide password' : 'Show password'}
+          className="absolute right-1 top-1 grid h-8 w-8 cursor-pointer place-items-center rounded-md text-faint transition-colors hover:bg-surface-3 hover:text-text"
+        >
+          {visible ? <EyeOff size={15} aria-hidden /> : <Eye size={15} aria-hidden />}
+        </button>
+      </div>
+      {hint && <p className="mt-1 text-[11px] text-faint">{hint}</p>}
+    </div>
+  )
+}
+
+/** Proportion bar — used for embedding capacity utilisation. */
+export function Meter({
+  label,
+  value,
+  caption,
+  tone = 'primary',
+}: {
+  label: string
+  value: number
+  caption?: string
+  tone?: 'primary' | 'accent' | 'success' | 'danger'
+}) {
+  const pct = Math.max(0, Math.min(1, value)) * 100
+  const fills = {
+    primary: 'bg-primary',
+    accent: 'bg-accent',
+    success: 'bg-success',
+    danger: 'bg-danger',
+  }
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-xs font-medium text-muted">{label}</span>
+        <span className="tnum text-xs font-semibold text-text">{pct.toFixed(1)}%</span>
+      </div>
+      <div
+        className="mt-1.5 h-2 overflow-hidden rounded-full bg-surface-3"
+        role="progressbar"
+        aria-valuenow={Math.round(pct)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label={label}
+      >
+        <div className={cx('h-full rounded-full transition-all duration-300', fills[tone])} style={{ width: `${pct}%` }} />
+      </div>
+      {caption && <p className="mt-1 text-[11px] text-faint">{caption}</p>}
     </div>
   )
 }

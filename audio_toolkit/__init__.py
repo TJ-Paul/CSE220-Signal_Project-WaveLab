@@ -12,4 +12,19 @@ processing pipeline:
     noise_reduction -> spectral-subtraction based denoising
     sampling      -> sampling-rate / aliasing / reconstruction demos
     metrics       -> MSE, SNR, correlation between two signals
+
+Editing and production layers, built on the modules above:
+
+    editing       -> trim, cut, splice, merge, fades, level matching
+    silence       -> silence detection (Schmitt trigger) and removal
+    timescale     -> time stretching, pitch shifting, F0 verification
+    vocals        -> karaoke / a cappella stems with separation metrics
+
+Classical stereo source separation (see stereo_sep/README.md):
+
+    stereo_sep    -> stereo karaoke / vocal-focus separation from Mid/Side
+                     geometry, STFT soft masking, HPSS, harmonic and
+                     repetition analysis. No ML. Requires a stereo source:
+                     the mono downmix (L+R)/2 destroys the Side signal, in
+                     which a centre-panned vocal cancels exactly.
 """

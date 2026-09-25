@@ -22,6 +22,11 @@ export interface ChartCanvasProps {
   onPointerMove?: (x: number, y: number, width: number, height: number) => void
   onPointerLeave?: () => void
   onClick?: (x: number, width: number) => void
+  /** Drag support. Pointer capture is taken on down, so a drag that leaves
+   *  the canvas keeps reporting until release. */
+  onPointerDown?: (x: number, width: number) => void
+  onPointerUp?: (x: number, width: number) => void
+  cursor?: string
   /** Text alternative describing what the chart shows. */
   label: string
   className?: string
@@ -33,6 +38,9 @@ export function ChartCanvas({
   onPointerMove,
   onPointerLeave,
   onClick,
+  onPointerDown,
+  onPointerUp,
+  cursor,
   label,
   className,
 }: ChartCanvasProps) {
@@ -54,13 +62,25 @@ export function ChartCanvas({
         ref={canvasRef}
         role="img"
         aria-label={label}
-        className={onPointerMove || onClick ? 'cursor-crosshair' : undefined}
+        style={{ touchAction: onPointerDown ? 'none' : undefined, cursor }}
+        className={!cursor && (onPointerMove || onClick) ? 'cursor-crosshair' : undefined}
         onPointerMove={(e) => {
           if (!onPointerMove) return
           const rect = e.currentTarget.getBoundingClientRect()
           onPointerMove(e.clientX - rect.left, e.clientY - rect.top, rect.width, rect.height)
         }}
         onPointerLeave={onPointerLeave}
+        onPointerDown={(e) => {
+          if (!onPointerDown) return
+          e.currentTarget.setPointerCapture(e.pointerId)
+          const rect = e.currentTarget.getBoundingClientRect()
+          onPointerDown(e.clientX - rect.left, rect.width)
+        }}
+        onPointerUp={(e) => {
+          if (!onPointerUp) return
+          const rect = e.currentTarget.getBoundingClientRect()
+          onPointerUp(e.clientX - rect.left, rect.width)
+        }}
         onClick={(e) => {
           if (!onClick) return
           const rect = e.currentTarget.getBoundingClientRect()

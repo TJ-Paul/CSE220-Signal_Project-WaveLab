@@ -9,6 +9,11 @@ fastapi>=0.115
 uvicorn>=0.30
 python-multipart>=0.0.9
 
+# Secure vault (vault/) — AES-256-GCM authenticated encryption and PNG
+# steganography. hashlib covers scrypt/PBKDF2 and SHA-256 from the stdlib.
+cryptography>=43
+pillow>=10.0
+
 # Legacy Streamlit UI (app.py) — superseded by web/, kept for reference
 matplotlib>=3.9
 streamlit>=1.60
