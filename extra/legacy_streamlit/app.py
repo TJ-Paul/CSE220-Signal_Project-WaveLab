@@ -6,12 +6,13 @@ that walks through the full pipeline:
     Input -> Sampling -> Time-Domain -> Framing/VAD -> FFT/STFT ->
     Filtering/Separation/Denoising -> Reconstruction -> Comparison
 
-Run with:  streamlit run app.py
+Run with:  cd extra/legacy_streamlit && streamlit run app.py
 """
 from __future__ import annotations
 
 import io
 import os
+import sys
 
 import numpy as np
 import pandas as pd
@@ -19,7 +20,11 @@ import soundfile as sf
 import streamlit as st
 from scipy.signal import find_peaks
 
-from audio_toolkit import (
+# audio_toolkit lives at the repo root, two levels up from this file.
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
+
+import visualization as viz  # noqa: E402  (sits next to this file)
+from audio_toolkit import (  # noqa: E402
     demo_signals,
     filters,
     io_utils,
@@ -29,9 +34,8 @@ from audio_toolkit import (
     separation,
     spectral,
     vad,
-    visualization as viz,
 )
-from audio_toolkit.framing import frame_signal
+from audio_toolkit.framing import frame_signal  # noqa: E402
 
 st.set_page_config(page_title="Signal Lab — Audio Signal Processing Toolkit", layout="wide", page_icon="∿")
 

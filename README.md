@@ -23,7 +23,10 @@ audio file beforehand (real WAV/MP3 upload is fully supported too).
 | `vault/`         | Encryption + PNG steganography — independent of the DSP package   |
 | `server/`        | FastAPI layer exposing both as JSON over HTTP                     |
 | `web/`           | React + TypeScript + Tailwind frontend (canvas-rendered charts)   |
-| `app.py`         | Original Streamlit UI — superseded by `web/`, kept for reference  |
+| `sample_data/`   | Bundled demo WAV files                                            |
+| `run.sh`         | Starts the API and the web app together                           |
+| `Context/`       | Presentation, report, guides, design notes — not needed to run    |
+| `extra/`         | Legacy Streamlit UI and old notes — kept for reference only       |
 
 ## Setup
 
@@ -50,14 +53,11 @@ python -m uvicorn server.main:app --port 8000 --reload   # API
 cd web && npm run dev                                    # frontend
 ```
 
-The legacy Streamlit UI still runs with `streamlit run app.py`.
-
-This opens the app in your browser (default: http://localhost:8501).
+The legacy Streamlit UI still runs — see [`extra/README.md`](extra/README.md).
 
 ## Project layout
 
 ```
-app.py                          Streamlit UI — 10 tabs, one per DSP concept
 audio_toolkit/
     io_utils.py                 Load/save audio, file metadata (duration, sr, channels, bitrate)
     framing.py                  Split a signal into short overlapping frames + windowing
@@ -68,7 +68,6 @@ audio_toolkit/
     noise_reduction.py          Spectral-subtraction denoising
     sampling.py                 Sampling-rate, aliasing, and reconstruction demonstrations
     metrics.py                  MSE, SNR, correlation between two signals
-    visualization.py            Matplotlib figure builders shared across tabs
     demo_signals.py             Synthetic demo signals (speech-like, noisy tone, song-like)
 
     editing.py                  Trim, cut, splice, merge, fades, crossfade laws, level matching
@@ -82,10 +81,20 @@ vault/
     stego.py                    Bit packing, capacity maths, LSB embed/extract, cover generation
     pipeline.py                 The two end-to-end directions, plus timing/metrics
     selftest.py                 25 security and integrity checks (`python -m vault.selftest`)
+
+server/
+    main.py                     FastAPI routes over audio_toolkit and vault
+    store.py                    In-memory session store for signals
+    vault_store.py              In-memory store for vault artefacts
+
+web/                            React + Vite frontend (src/views, src/components, src/lib)
+sample_data/                    Demo WAV files
+Context/                        Presentation, report, guides, design notes (see Context/README.md)
+extra/                          Legacy Streamlit UI, old notes (see extra/README.md)
 ```
 
 Each module is self-contained and independently testable — none of
-them import Streamlit, so the DSP logic can be reused (or unit
+them import a UI framework, so the DSP logic can be reused (or unit
 tested) outside the UI.
 
 ## What each tab demonstrates

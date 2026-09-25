@@ -1,10 +1,55 @@
+# ── Python ────────────────────────────────────────────────
 .venv/
+venv/
+env/
 __pycache__/
-*.pyc
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ── Node / web frontend (web/.gitignore covers the rest) ──
 node_modules/
 web/dist/
-.streamlit/
+
+# ── Environment & secrets ─────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Audio produced at runtime (keep bundled samples) ──────
 *.wav
+*.mp3
+*.flac
 !sample_data/*.wav
-audio-toolkit-guide.html
-.claude
+
+# ── Context/: local-only material ─────────────────────────
+Context/presentation/
+Context/guides/audio-toolkit-guide.html
+# LaTeX build by-products, wherever the .tex gets compiled
+*.aux
+*.log
+*.nav
+*.out
+*.snm
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# ── extra/: archives ──────────────────────────────────────
+*.zip
+__MACOSX/
+
+# ── Editors & OS ──────────────────────────────────────────
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*~
+
+# ── Tooling ───────────────────────────────────────────────
+.claude/

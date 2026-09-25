@@ -1,0 +1,5 @@
+# Legacy Streamlit UI — install on top of the root requirements.txt:
+#   pip install -r requirements.txt -r extra/legacy_streamlit/requirements.txt
+matplotlib>=3.9
+pandas>=2.2
+streamlit>=1.60
