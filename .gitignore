@@ -25,8 +25,8 @@ web/dist/
 *.mp3
 *.flac
 !sample_data/*.wav
-extra
-Context
+extra/
+Context/
 
 # ── Context/: local-only material ─────────────────────────
 Context/presentation/
