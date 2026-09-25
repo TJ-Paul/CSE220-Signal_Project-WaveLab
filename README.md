@@ -1,4 +1,11 @@
-# 🎧 Signal Lab — Audio Signal Processing Toolkit
+# Signal Lab — Audio Signal Processing Toolkit
+
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-API-009688?style=flat-square&logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-6-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=flat-square&logo=vite&logoColor=white)
+![Platforms](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat-square)
 
 An interactive web app that walks through the **complete audio DSP pipeline**, from loading a file to filtering, separating and reconstructing it, with a live visualization at every step.
 
@@ -10,26 +17,27 @@ Reconstruction → Output
 
 It was built for a live university demo. Each tab pairs a short explanation of the math with interactive controls and a real chart. Every tab has a one-click **demo** button, so you don't need your own audio file (WAV/MP3 upload works too).
 
+> [!NOTE]
 > **No machine learning anywhere.** Everything is classical signal processing and standard cryptography: NumPy, SciPy, librosa. It runs on any laptop with no GPU and no model downloads.
 
 ---
 
-## 📑 Contents
+## Contents
 
-- [What's inside](#-whats-inside)
-- [Quick start](#-quick-start)
-- [Features](#-features)
+- [What's inside](#whats-inside)
+- [Quick start](#quick-start)
+- [Features](#features)
   - [Analysis tabs](#analysis-tabs)
   - [Editing and production](#editing-and-production)
   - [Secure Vault: audio ⇄ encrypted PNG](#secure-vault-audio--encrypted-png)
-- [Project layout](#-project-layout)
-- [Sample audio](#-sample-audio)
-- [Notes and limitations](#-notes-and-limitations)
-- [📦 Complete setup guide (Windows · macOS · Linux)](#-complete-setup-guide)
+- [Project layout](#project-layout)
+- [Sample audio](#sample-audio)
+- [Notes and limitations](#notes-and-limitations)
+- [Complete setup guide (Windows · macOS · Linux)](#complete-setup-guide)
 
 ---
 
-## 🧩 What's inside
+## What's inside
 
 | Part             | What it does                                                   | Built with                  |
 | ---------------- | -------------------------------------------------------------- | --------------------------- |
@@ -47,7 +55,7 @@ The app has two halves that run at the same time:
 
 ---
 
-## ⚡ Quick start
+## Quick start
 
 Already have Python 3.10+ and Node.js 20.19+ installed? Then:
 
@@ -62,15 +70,15 @@ pip install -r requirements.txt
 ./run.sh
 ```
 
-**Windows (PowerShell)**: use two terminals. See [Windows setup](#-windows).
+**Windows (PowerShell)**: use two terminals. See [Windows setup](#windows).
 
 Then open **http://localhost:5173**.
 
-New to any of this? Jump to the **[complete setup guide](#-complete-setup-guide)** at the bottom.
+New to any of this? Jump to the **[complete setup guide](#complete-setup-guide)** at the bottom.
 
 ---
 
-## ✨ Features
+## Features
 
 ### Analysis tabs
 
@@ -91,11 +99,11 @@ New to any of this? Jump to the **[complete setup guide](#-complete-setup-guide)
 
 Every result becomes a new signal in the session, so steps **chain**: trim a clip, fade it, then merge it with another.
 
-- **✂️ Trim, Cut & Fade.** Drag across the waveform to keep or delete a region. Deleted gaps are crossfaded so the splice doesn't click. You can choose from five fade curves (linear, exponential, logarithmic, S-curve, equal-power), and each is plotted before it's applied.
-- **🔇 Silence Remover.** Detects silence with a Schmitt trigger (separate on/off thresholds, so it can't flicker at the boundary). The threshold adapts to the recording's own noise floor. A minimum silence length and edge padding keep it from over-cutting.
-- **🔗 Merge.** Joins clips in order with a crossfade or a gap. *Equal-power* crossfades suit unrelated sources, where a linear fade dips about 3 dB; *linear* suits two parts of the same take. Mixed sample rates are resampled automatically.
-- **🎚️ Speed & Pitch.** A phase vocoder changes duration without changing pitch. Resampling (varispeed) changes both together. You can also transpose by semitones at a fixed duration. **The resulting pitch shift is measured, not assumed** (see below).
-- **🎤 Karaoke & Vocals.** Produces a backing track and/or an isolated vocal, level-matched to the source for fair A/B listening. It reports vocal-band suppression, correlation between stems and energy share.
+- **Trim, Cut & Fade.** Drag across the waveform to keep or delete a region. Deleted gaps are crossfaded so the splice doesn't click. You can choose from five fade curves (linear, exponential, logarithmic, S-curve, equal-power), and each is plotted before it's applied.
+- **Silence Remover.** Detects silence with a Schmitt trigger (separate on/off thresholds, so it can't flicker at the boundary). The threshold adapts to the recording's own noise floor. A minimum silence length and edge padding keep it from over-cutting.
+- **Merge.** Joins clips in order with a crossfade or a gap. *Equal-power* crossfades suit unrelated sources, where a linear fade dips about 3 dB; *linear* suits two parts of the same take. Mixed sample rates are resampled automatically.
+- **Speed & Pitch.** A phase vocoder changes duration without changing pitch. Resampling (varispeed) changes both together. You can also transpose by semitones at a fixed duration. **The resulting pitch shift is measured, not assumed** (see below).
+- **Karaoke & Vocals.** Produces a backing track and/or an isolated vocal, level-matched to the source for fair A/B listening. It reports vocal-band suppression, correlation between stems and energy share.
 
 <details>
 <summary><b>How the pitch shift is verified</b></summary>
@@ -162,7 +170,7 @@ python -m vault.selftest
 
 ---
 
-## 🗂️ Project layout
+## Project layout
 
 ```
 audio_toolkit/
@@ -204,7 +212,7 @@ None of the Python modules import a UI framework, so the DSP code can be reused 
 
 ---
 
-## 🎵 Sample audio
+## Sample audio
 
 `sample_data/` contains four ready-made WAV files generated by `audio_toolkit/demo_signals.py`:
 
@@ -224,7 +232,7 @@ io_utils.save_audio('sample_data/speech_like_demo.wav', y, sr)
 
 ---
 
-## 📝 Notes and limitations
+## Notes and limitations
 
 - **Classical methods only.** Separation, denoising, the phase vocoder and the vault use no models, training or inference. It runs anywhere, but separation and denoising quality is below modern neural tools.
 - **No homemade crypto.** AES-256-GCM comes from the `cryptography` library, and scrypt/SHA-256 from Python's standard library.
@@ -233,7 +241,7 @@ io_utils.save_audio('sample_data/speech_like_demo.wav', y, sr)
 
 ---
 
-## 📦 Complete setup guide
+## Complete setup guide
 
 Step-by-step instructions for a fresh machine, from cloning the repo to seeing the app in your browser.
 
@@ -250,13 +258,14 @@ You'll run these commands in a terminal: **PowerShell** on Windows, **Terminal**
 
 ---
 
-### 🪟 Windows
+### Windows
 
 #### Step 1: Install the tools
 
 1. **Git**: download from <https://git-scm.com/download/win> and run the installer with the default options.
 2. **Python**: download from <https://www.python.org/downloads/>.
-   ⚠️ On the first installer screen, **tick "Add python.exe to PATH"** before clicking *Install Now*.
+
+   > **Important:** on the first installer screen, **tick "Add python.exe to PATH"** before clicking *Install Now*.
 3. **Node.js**: download the **LTS** installer from <https://nodejs.org/> and run it with the default options.
 4. **Close and reopen PowerShell** so it picks up the new tools, then check them:
 
@@ -293,6 +302,7 @@ python -m venv .venv
 
 Your prompt should now start with `(.venv)`.
 
+> [!WARNING]
 > **Got a red "running scripts is disabled on this system" error?** Run this once, answer **Y**, then try activating again:
 >
 > ```powershell
@@ -339,15 +349,16 @@ npm run dev
 
 #### Step 8: Open it
 
-Go to **<http://localhost:5173>** in your browser. 🎉
+Go to **<http://localhost:5173>** in your browser.
 
 To stop the app, press **Ctrl + C** in both terminals.
 
-> 💡 If you have **Git Bash** (installed with Git) or **WSL**, `./run.sh` works there too. In Git Bash, activate with `source .venv/Scripts/activate`.
+> [!TIP]
+> If you have **Git Bash** (installed with Git) or **WSL**, `./run.sh` works there too. In Git Bash, activate with `source .venv/Scripts/activate`.
 
 ---
 
-### 🍎 macOS
+### macOS
 
 #### Step 1: Install the tools
 
@@ -411,13 +422,13 @@ On the first run it installs the web app's npm packages automatically, which tak
 
 #### Step 6: Open it
 
-Go to **<http://localhost:5173>**. 🎉
+Go to **<http://localhost:5173>**.
 
 Press **Ctrl + C** once to stop both halves.
 
 ---
 
-### 🐧 Linux
+### Linux
 
 These commands are for **Ubuntu/Debian**. Other distros are listed after Step 1.
 
@@ -490,13 +501,13 @@ chmod +x run.sh     # only needed the first time
 
 #### Step 6: Open it
 
-Go to **<http://localhost:5173>**. 🎉
+Go to **<http://localhost:5173>**.
 
 Press **Ctrl + C** to stop.
 
 ---
 
-### ▶️ Running it again later
+### Running it again later
 
 You only need to install once. Next time:
 
@@ -505,13 +516,13 @@ You only need to install once. Next time:
 | **macOS / Linux** | `source .venv/bin/activate` then `./run.sh`                                                                                                     |
 | **Windows**       | Terminal 1: `.venv\Scripts\Activate.ps1` then `python -m uvicorn server.main:app --port 8000 --reload`<br>Terminal 2: `cd web` then `npm run dev` |
 
-### ✅ Check that it's working
+### Check that it's working
 
 - **<http://localhost:8000/api/health>** should respond, which means the API is up.
 - **<http://localhost:5173>** should show the app. Click any tab's **demo** button.
 - Optional: `python -m vault.selftest` should report all 25 checks passing.
 
-### 🛠️ Troubleshooting
+### Troubleshooting
 
 | Problem                                                                   | Fix                                                                                                                                                                         |
 | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
