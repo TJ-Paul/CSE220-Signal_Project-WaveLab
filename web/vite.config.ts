@@ -7,7 +7,10 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:8000',
+      // The API only listens on 127.0.0.1; xfwd appends each visitor's real
+      // address, which is how the API tells the presenter's machine from
+      // guests on the network. `vite preview` inherits this proxy.
+      '/api': { target: 'http://127.0.0.1:8000', xfwd: true },
     },
   },
 })

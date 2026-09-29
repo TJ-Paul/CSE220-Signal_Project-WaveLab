@@ -18,7 +18,8 @@ export function TransportBar({
   signals: SignalSummary[]
   active: SignalSummary | null
   onSelect: (id: string) => void
-  onClear: () => void
+  /** Omitted for guests: only the presenter's machine may clear the session. */
+  onClear?: () => void
   onOpenNav: () => void
 }) {
   const playback = usePlayback()
@@ -155,7 +156,7 @@ export function TransportBar({
           <div className="flex-1 text-[13px] text-muted">No signal loaded</div>
         )}
 
-        {signals.length > 0 && (
+        {onClear && signals.length > 0 && (
           <Button
             size="sm"
             variant="ghost"

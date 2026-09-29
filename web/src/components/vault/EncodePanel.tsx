@@ -16,6 +16,7 @@ import { useSignalPlayhead } from '../../state/PlaybackContext'
 import { HistogramChart } from '../charts/HistogramChart'
 import { WaveformChart } from '../charts/WaveformChart'
 import { FileDrop } from '../FileDrop'
+import { ShareWithRoom } from '../ShareWithRoom'
 import {
   Badge,
   Button,
@@ -358,6 +359,7 @@ function StegoImage({ result }: { result: VaultEncodeData }) {
             { label: 'PNG size', value: fmt.bytes(result.pngSize) },
           ]}
         />
+        <ShareWithRoom key={result.imageId} artifactId={result.imageId} />
         <Notice tone="warn" title="This preview is downscaled — keep the download">
           Resampling averages neighbouring pixels and destroys the low-bit plane, so a screenshot
           of this preview contains no payload. Only the downloaded PNG decodes. For the same

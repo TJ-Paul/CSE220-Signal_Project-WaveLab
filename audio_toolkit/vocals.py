@@ -1,16 +1,25 @@
-"""Karaoke and a cappella production — the application layer over `separation`.
+"""Karaoke and a cappella production — the application layer over separation.
 
-`separation` answers a signal-processing question: which parts of this
-spectrogram repeat, and which do not. This module turns that answer into
+Two separation engines can sit underneath:
+
+    "ml"         a pretrained Demucs model (`ml_separation`), the default
+                 when it is installed: it has learned what a voice sounds
+                 like, so it separates *voice* from *instruments*.
+    "classical"  repetition-based masking (`separation`): no model, but it
+                 separates *non-repeating* from *repeating* content, which
+                 is only the same thing on loop-based music.
+
+Either engine answers "which part of this mix is the vocal". This module
+turns that answer into
 the three things anyone actually asks for —
 
     karaoke     the backing track, vocals suppressed
     a cappella  the isolated lead, backing suppressed
     both        the pair, for A/B listening
 
-— and, just as importantly, measures how well it worked. Everything here
-is composition: the separation itself is unchanged, so nothing in this
-file can make a bad split good. What it can do is present the split
+— and, just as importantly, measures how well it worked, with the same
+metrics for both engines so they can be compared fairly. Everything here
+is composition: nothing in this file can make a bad split good. What it can do is present the split
 fairly and quantify it honestly.
 
 LEVEL MATCHING IS NOT COSMETIC
@@ -40,9 +49,12 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from . import editing, filters, metrics, separation
+from . import editing, filters, metrics, ml_separation, separation
 
-#: Mask aggressiveness, as (background margin, foreground margin).
+ENGINES = ("ml", "classical")
+
+#: Mask aggressiveness for the classical engine, as (background margin,
+#: foreground margin). The ML engine has no equivalent knob.
 #: Higher margins commit each bin more decisively to one stream: cleaner
 #: on paper, more artefacts in the ear. "Balanced" matches the defaults in
 #: `separation`, so a preset is a considered starting point, not a secret.
@@ -71,6 +83,7 @@ class VocalStems:
     #: Share of total energy that ended up in the vocal stem, 0–1.
     vocal_energy_share: float
     preset: str
+    engine: str
 
 
 def _band_rms(y: np.ndarray, sr: int, band: tuple[float, float] = VOCAL_BAND_HZ) -> float:
@@ -89,14 +102,27 @@ def make_stems(
     sr: int,
     preset: str = "balanced",
     level_match: bool = True,
+    engine: str = "ml",
+    y_stereo: np.ndarray | None = None,
 ) -> VocalStems:
-    """Split a mix into a karaoke stem and an a cappella stem, with metrics."""
-    margin_background, margin_foreground = PRESETS.get(preset, PRESETS["balanced"])
-    vocals, instrumental = separation.separate_vocals_instrumental(
-        y, sr,
-        margin_background=margin_background,
-        margin_foreground=margin_foreground,
-    )
+    """Split a mix into a karaoke stem and an a cappella stem, with metrics.
+
+    `y` is the mono mix. `y_stereo`, when given, is passed to the ML engine
+    instead, because Demucs is a stereo model and uses the channel
+    difference as extra evidence. Output stems are always mono.
+    """
+    if engine == "ml":
+        vocals, instrumental = ml_separation.separate_vocals_instrumental(
+            y_stereo if y_stereo is not None else y, sr)
+        if vocals.ndim == 2:
+            vocals, instrumental = vocals.mean(axis=0), instrumental.mean(axis=0)
+    else:
+        margin_background, margin_foreground = PRESETS.get(preset, PRESETS["balanced"])
+        vocals, instrumental = separation.separate_vocals_instrumental(
+            y, sr,
+            margin_background=margin_background,
+            margin_foreground=margin_foreground,
+        )
 
     # Measured on the raw stems: level matching afterwards would inflate the
     # instrumental back toward the mix and erase the very difference being
@@ -123,4 +149,5 @@ def make_stems(
         stem_correlation=correlation,
         vocal_energy_share=share,
         preset=preset if preset in PRESETS else "balanced",
+        engine=engine,
     )

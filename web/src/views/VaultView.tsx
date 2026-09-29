@@ -48,7 +48,7 @@ export function VaultView() {
               aria-selected={active}
               onClick={() => setMode(item.id)}
               className={cx(
-                'flex cursor-pointer items-center gap-3 rounded-[14px] border px-4 py-3 text-left',
+                'flex min-w-0 cursor-pointer items-center gap-3 rounded-[14px] border px-4 py-3 text-left',
                 'transition-colors duration-150',
                 active
                   ? 'border-primary bg-primary-soft'

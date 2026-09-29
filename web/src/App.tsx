@@ -5,6 +5,7 @@ import { TransportBar } from './components/TransportBar'
 import { EmptyState, ViewBody, ViewHeader } from './components/ViewShell'
 import { Button } from './components/ui'
 import type { ViewId } from './lib/types'
+import { useIsHost } from './lib/useIsHost'
 import { PlaybackProvider } from './state/PlaybackContext'
 import { SignalProvider, useSignals } from './state/SignalContext'
 import { CompareView } from './views/CompareView'
@@ -12,9 +13,11 @@ import { DashboardView } from './views/DashboardView'
 import { DenoiseView } from './views/DenoiseView'
 import { EditorView } from './views/EditorView'
 import { FilterView } from './views/FilterView'
+import { HiddenNoteView } from './views/HiddenNoteView'
+import { LyricsView } from './views/LyricsView'
 import { MergeView } from './views/MergeView'
 import { SamplingView } from './views/SamplingView'
-import { SeparationView } from './views/SeparationView'
+import { SharedFilesView } from './views/SharedFilesView'
 import { SilenceView } from './views/SilenceView'
 import { SpectrogramView } from './views/SpectrogramView'
 import { SpectrumView } from './views/SpectrumView'
@@ -27,8 +30,10 @@ import { WaveformView } from './views/WaveformView'
 type Theme = 'dark' | 'light'
 
 /** Views that stand on their own: the dashboard loads signals, the sampling
- *  demo synthesises its own, and merge works across the whole session. */
-const SIGNAL_FREE_VIEWS: ViewId[] = ['dashboard', 'sampling', 'merge', 'vault']
+ *  demo synthesises its own, and merge works across the whole session. The
+ *  hidden-note view can read a note from an uploaded file with no signal, and
+ *  shared files are independent of the session's signals. */
+const SIGNAL_FREE_VIEWS: ViewId[] = ['dashboard', 'sampling', 'merge', 'vault', 'note', 'shared']
 
 function useTheme(): [Theme, () => void] {
   const [theme, setTheme] = useState<Theme>(
@@ -46,6 +51,7 @@ function Workspace() {
   const [view, setView] = useState<ViewId>('dashboard')
   const [theme, toggleTheme] = useTheme()
   const [navOpen, setNavOpen] = useState(false)
+  const isHost = useIsHost()
 
   // Escape closes the mobile drawer, matching every other dismissible surface.
   useEffect(() => {
@@ -67,7 +73,7 @@ function Workspace() {
   }, [])
 
   return (
-    <div className="flex h-screen overflow-hidden bg-bg">
+    <div className="flex h-dvh overflow-hidden bg-bg">
       <Sidebar
         view={view}
         onNavigate={navigate}
@@ -84,7 +90,7 @@ function Workspace() {
           signals={signals}
           active={active}
           onSelect={setActiveId}
-          onClear={() => void clearAll()}
+          onClear={isHost ? () => void clearAll() : undefined}
           onOpenNav={() => setNavOpen(true)}
         />
 
@@ -109,6 +115,8 @@ function Workspace() {
             {view === 'sampling' && <SamplingView signal={active} />}
             {view === 'merge' && <MergeView signals={signals} activeId={active?.id ?? null} />}
             {view === 'vault' && <VaultView />}
+            {view === 'note' && <HiddenNoteView signal={active} onNavigate={navigate} />}
+            {view === 'shared' && <SharedFilesView onNavigate={navigate} />}
 
             {active ? (
               <>
@@ -117,12 +125,12 @@ function Workspace() {
                 {view === 'spectrogram' && <SpectrogramView key={active.id} signal={active} />}
                 {view === 'vad' && <VadView key={active.id} signal={active} />}
                 {view === 'filter' && <FilterView key={active.id} signal={active} />}
-                {view === 'separation' && <SeparationView key={active.id} signal={active} />}
                 {view === 'denoise' && <DenoiseView key={active.id} signal={active} />}
                 {view === 'editor' && <EditorView key={active.id} signal={active} />}
                 {view === 'silence' && <SilenceView key={active.id} signal={active} />}
                 {view === 'timepitch' && <TimePitchView key={active.id} signal={active} />}
                 {view === 'vocals' && <VocalStudioView key={active.id} signal={active} />}
+                {view === 'lyrics' && <LyricsView key={active.id} signal={active} />}
                 {view === 'compare' && <CompareView signals={signals} activeId={active.id} />}
               </>
             ) : (

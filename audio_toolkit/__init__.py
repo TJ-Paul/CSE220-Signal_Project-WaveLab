@@ -9,6 +9,9 @@ processing pipeline:
     spectral      -> FFT / STFT / spectrogram computation
     filters       -> Butterworth low/high/band-pass/stop filters
     separation    -> vocal/instrumental separation (classical DSP method)
+    ml_separation -> vocal/instrumental separation with pretrained Demucs
+    transcription -> timestamped lyrics / speech-to-text (Demucs → Whisper)
+    lyrics_align  -> sync known lyrics to the audio (forced alignment)
     noise_reduction -> spectral-subtraction based denoising
     sampling      -> sampling-rate / aliasing / reconstruction demos
     metrics       -> MSE, SNR, correlation between two signals

@@ -13,3 +13,19 @@ python-multipart>=0.0.9
 # steganography. hashlib covers scrypt/PBKDF2 and SHA-256 from the stdlib.
 cryptography>=43
 pillow>=10.0
+
+# ML vocal separation (audio_toolkit/ml_separation.py) — pretrained Demucs
+# model from Meta AI, used as a ready-made tool (no training). Pulls in
+# PyTorch (~600 MB). The model weights (~85 MB) download on first use.
+# Optional: without it, only the Classical engine in Karaoke & Vocals works.
+demucs>=4.0
+
+# Lyrics & Transcription (audio_toolkit/transcription.py) — pretrained
+# OpenAI Whisper speech-to-text, run on the isolated Demucs vocal. Uses the
+# "turbo" model (~1.6 GB, downloaded on first use). Audio is passed in
+# memory, so ffmpeg is not needed.
+openai-whisper>=20250625
+
+# LAN demo mode (./run.sh --demo, scripts/lan_demo.py) — QR codes for joining
+# the Wi-Fi and opening the app. Pure Python, no dependencies.
+segno>=1.6

@@ -7,6 +7,7 @@ audio_toolkit so the DSP and the UI evolve independently.
 from __future__ import annotations
 
 import base64
+import hashlib
 import io
 import os
 import re
@@ -17,7 +18,7 @@ import soundfile as sf
 from PIL import Image as PILImage
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 from scipy.signal import find_peaks
 
@@ -28,20 +29,28 @@ from audio_toolkit import (  # noqa: E402
     editing,
     filters,
     io_utils,
+    lyrics_align,
     metrics,
+    ml_separation,
     noise_reduction,
     sampling,
     separation,
     silence,
     spectral,
     timescale,
+    transcription,
     vad,
     vocals,
 )
 from audio_toolkit import stereo_sep
 import vault  # noqa: E402
+from vault import audio_stego  # noqa: E402
 from vault import stego as vault_stego  # noqa: E402
 from vault.container import HEADER_SIZE as VAULT_HEADER_SIZE  # noqa: E402
+from server.jobs import Job, JobQueue  # noqa: E402
+from server.lan import attachment_headers, is_host, require_host  # noqa: E402
+from server.shared_store import MAX_FILE_BYTES as SHARED_MAX_BYTES  # noqa: E402
+from server.shared_store import SharedStoreError, shared_store  # noqa: E402
 from server.store import Signal, store  # noqa: E402
 from server.vault_store import vault_store  # noqa: E402
 
@@ -64,6 +73,20 @@ def require(signal_id: str) -> Signal:
     if sig is None:
         raise HTTPException(status_code=404, detail="Signal not found")
     return sig
+
+
+def _results_still_stored(payload: dict) -> bool:
+    """A finished ML result is reusable only while the stems it lists exist."""
+    return all(store.get(payload[k]["id"]) is not None
+               for k in ("karaoke", "acapella", "vocals") if payload.get(k))
+
+
+#: Karaoke and lyrics run as background jobs; see server/jobs.py.
+jobs = JobQueue(still_valid=_results_still_stored)
+
+
+def job_response(job: Job, reused: bool) -> dict:
+    return {**jobs.snapshot(job.id), "reused": reused}
 
 
 def peak_envelope(y: np.ndarray, buckets: int) -> dict:
@@ -221,7 +244,8 @@ def load_demo(kind: str):
 
 
 @app.delete("/api/signals/{signal_id}")
-def delete_signal(signal_id: str):
+def delete_signal(signal_id: str, request: Request):
+    require_host(request)
     require(signal_id)
     store.remove(signal_id)
     _WAV_CACHE.pop(signal_id, None)
@@ -229,9 +253,11 @@ def delete_signal(signal_id: str):
 
 
 @app.post("/api/signals/clear")
-def clear_signals():
+def clear_signals(request: Request):
+    require_host(request)
     store.clear()
     _WAV_CACHE.clear()
+    jobs.forget_finished()
     return {"ok": True}
 
 
@@ -1008,22 +1034,49 @@ def run_pitch(signal_id: str, req: PitchRequest):
 # ---------------------------------------------------------------------------
 
 class VocalsRequest(BaseModel):
-    preset: str = "balanced"
+    engine: str = "ml"  # "ml" (pretrained Demucs) | "classical" (repetition masking)
+    preset: str = "balanced"  # classical engine only
     outputs: str = "both"  # "karaoke" | "acapella" | "both"
     levelMatch: bool = True
+
+
+@app.get("/api/vocals/engines")
+def vocals_engines():
+    """Which separation engines this install can run."""
+    return {"ml": ml_separation.is_available(), "classical": True,
+            "mlModel": ml_separation.MODEL_NAME}
 
 
 @app.post("/api/signals/{signal_id}/vocals")
 def run_vocals(signal_id: str, req: VocalsRequest):
     sig = require(signal_id)
+    if req.engine not in vocals.ENGINES:
+        raise HTTPException(status_code=400, detail=f"engine must be one of {list(vocals.ENGINES)}")
+    if req.engine == "ml" and not ml_separation.is_available():
+        raise HTTPException(status_code=400,
+                            detail="The ML engine needs Demucs: run `pip install demucs` "
+                                   "in the virtual environment and restart the API.")
     if req.preset not in vocals.PRESETS:
         raise HTTPException(status_code=400, detail=f"preset must be one of {list(vocals.PRESETS)}")
     if req.outputs not in ("karaoke", "acapella", "both"):
         raise HTTPException(status_code=400, detail="outputs must be 'karaoke', 'acapella' or 'both'")
 
-    stems = vocals.make_stems(sig.y, sig.sr, preset=req.preset, level_match=req.levelMatch)
+    # The preset only steers the classical engine, so it must not split ML jobs.
+    preset = req.preset if req.engine == "classical" else "-"
+    key = f"vocals:{sig.fingerprint}:{req.engine}:{preset}:{req.outputs}:{req.levelMatch}"
+    # Demucs waits its turn for the GPU; the classical engine needs only the
+    # CPU, so it starts at once.
+    job, reused = jobs.submit(key, lambda: make_vocals(sig, req), gpu=req.engine == "ml")
+    return job_response(job, reused)
+
+
+def make_vocals(sig: Signal, req: VocalsRequest) -> dict:
+    stems = vocals.make_stems(sig.y, sig.sr, preset=req.preset, level_match=req.levelMatch,
+                              engine=req.engine,
+                              y_stereo=sig.y_stereo if sig.has_stereo else None)
 
     payload: dict = {
+        "engine": stems.engine,
         "preset": stems.preset,
         "levelMatched": req.levelMatch,
         "metrics": {
@@ -1052,8 +1105,110 @@ def run_vocals(signal_id: str, req: VocalsRequest):
         payload["truth"] = {
             "vocalsCorrelation": float(metrics.correlation(truth_fg.y, stems.vocals)),
             "instrumentalCorrelation": float(metrics.correlation(truth_bg.y, stems.instrumental)),
+            # Scale-invariant SDR: the standard separation score, unaffected by
+            # the level matching above.
+            "vocalsSdrDb": float(metrics.si_sdr_db(truth_fg.y, stems.vocals)),
+            "instrumentalSdrDb": float(metrics.si_sdr_db(truth_bg.y, stems.instrumental)),
         }
     return payload
+
+
+# ---------------------------------------------------------------------------
+# Lyrics / voice transcription (Demucs → Whisper)
+# ---------------------------------------------------------------------------
+
+class TranscribeRequest(BaseModel):
+    language: str = "en"  # "en" | "hi" | "bn"
+    mode: str = "song"  # "song" (isolate vocals first) | "voice" (plain recording)
+    #: Optional known lyrics, one line per line. When given, these exact lines
+    #: are synced to the audio instead of using Whisper's own words.
+    lyrics: str | None = None
+
+
+@app.get("/api/transcribe/status")
+def transcribe_status():
+    """Whether this install can transcribe, and on what hardware."""
+    available = transcription.is_available() and ml_separation.is_available()
+    return {
+        "available": available,
+        "model": transcription.MODEL_NAME,
+        "device": transcription.best_device() if available else None,
+        "languages": [{"code": k, "name": v} for k, v in transcription.LANGUAGES.items()],
+    }
+
+
+@app.post("/api/signals/{signal_id}/transcribe")
+def run_transcribe(signal_id: str, req: TranscribeRequest):
+    sig = require(signal_id)
+    if req.language not in transcription.LANGUAGES:
+        raise HTTPException(status_code=400,
+                            detail=f"language must be one of {list(transcription.LANGUAGES)}")
+    if req.mode not in ("song", "voice"):
+        raise HTTPException(status_code=400, detail="mode must be 'song' or 'voice'")
+    if not transcription.is_available():
+        raise HTTPException(status_code=400,
+                            detail="Transcription needs Whisper: run `pip install openai-whisper` "
+                                   "in the virtual environment and restart the API.")
+    lyric_lines = None
+    if req.lyrics is not None and req.lyrics.strip():
+        if len(req.lyrics) > 20_000:
+            raise HTTPException(status_code=400, detail="Lyrics are too long (limit 20,000 characters).")
+        lyric_lines = lyrics_align.parse_lyrics(req.lyrics)
+        if not lyric_lines:
+            raise HTTPException(status_code=400, detail="No lyric lines found: section headers "
+                                                        "like [Chorus] and blank lines are ignored.")
+    if req.mode == "song" and not ml_separation.is_available():
+        raise HTTPException(status_code=400,
+                            detail="Song mode needs Demucs: run `pip install demucs`, or pick "
+                                   "Voice recording.")
+
+    lyrics_hash = hashlib.sha1("\n".join(lyric_lines or []).encode()).hexdigest()[:12]
+    key = f"transcribe:{sig.fingerprint}:{req.language}:{req.mode}:{lyrics_hash}"
+    job, reused = jobs.submit(key, lambda: make_transcript(sig, req, lyric_lines))
+    return job_response(job, reused)
+
+
+def make_transcript(sig: Signal, req: TranscribeRequest, lyric_lines: list[str] | None) -> dict:
+    # Separation doesn't depend on the language, so a stem made by an earlier
+    # run on this signal is reused and Demucs is skipped.
+    stem = next((s for s in store.list()
+                 if s.source_id == sig.id and s.meta.get("lyricsStem")), None)
+
+    result = transcription.transcribe(
+        sig.y, sig.sr, language=req.language, mode=req.mode,
+        y_stereo=sig.y_stereo if sig.has_stereo else None,
+        vocals=stem.y if (stem is not None and req.mode == "song") else None,
+        lyrics=lyric_lines,
+    )
+
+    if req.mode == "song" and stem is None and result.vocals is not None:
+        stem = store.add(f"{sig.name} · vocals (lyrics)", result.vocals, sig.sr,
+                         origin="derived", source_id=sig.id, format="A cappella",
+                         channels=1, stem="vocals", lyricsStem=True)
+
+    return {
+        "language": result.language,
+        "languageName": transcription.LANGUAGES[result.language],
+        "mode": result.mode,
+        "model": result.model,
+        "device": result.device,
+        "lines": [{"start": l.start, "end": l.end, "text": l.text,
+                   "words": [{"start": w.start, "end": w.end, "text": w.text} for w in l.words]}
+                  for l in result.lines],
+        "timings": {
+            "separateS": result.timings.get("separate"),
+            "transcribeS": result.timings["transcribe"],
+            "stemReused": req.mode == "song" and "separate" not in result.timings,
+            "loadModelsS": result.timings.get("loadModels"),
+            "alignS": result.timings.get("align"),
+        },
+        "droppedSilent": result.dropped_silent,
+        "recoveredLines": result.recovered,
+        "aligned": result.aligned,
+        "matchRate": result.match_rate,
+        "confidence": result.confidence,
+        "vocals": stem.summary() if (stem is not None and req.mode == "song") else None,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -1122,6 +1277,14 @@ def ingest_audio(raw: bytes, filename: str, origin: str, **meta) -> tuple[Signal
                                        file_size_bytes=len(raw))
     except Exception:  # noqa: BLE001 — any decode failure is non-fatal here
         return None, {}
+    # Keep the stereo field as uploads do, so a vault song separates as well
+    # in Karaoke & Vocals and Lyrics as the same file uploaded directly.
+    y_stereo = None
+    if info.channels >= 2:
+        try:
+            y_stereo, _ = stereo_sep.load_stereo(io.BytesIO(raw), sr=sr)
+        except Exception:  # noqa: BLE001 — stereo is optional, mono still works
+            y_stereo = None
 
     audio_info = {
         "sampleRate": int(sr),
@@ -1133,7 +1296,7 @@ def ingest_audio(raw: bytes, filename: str, origin: str, **meta) -> tuple[Signal
         "isLossy": info.is_lossy,
     }
     sig = store.add(
-        filename or "vault audio", y, sr, origin=origin,
+        filename or "vault audio", y, sr, origin=origin, y_stereo=y_stereo,
         format=info.subtype, channels=info.channels, bitDepth=info.bit_depth,
         bitrateKbps=round(info.bitrate_kbps, 1), isLossy=info.is_lossy,
         fileSizeBytes=len(raw), **meta,
@@ -1212,10 +1375,7 @@ def vault_image(artifact_id: str):
     return Response(
         content=artifact.data,
         media_type="image/png",
-        headers={
-            "Content-Disposition": f'attachment; filename="{artifact.filename}"',
-            "Content-Length": str(len(artifact.data)),
-        },
+        headers=attachment_headers(artifact.filename, len(artifact.data)),
     )
 
 
@@ -1319,10 +1479,7 @@ def vault_file(artifact_id: str):
     return Response(
         content=artifact.data,
         media_type=artifact.content_type,
-        headers={
-            "Content-Disposition": f'attachment; filename="{artifact.filename}"',
-            "Content-Length": str(len(artifact.data)),
-        },
+        headers=attachment_headers(artifact.filename, len(artifact.data)),
     )
 
 
@@ -1373,10 +1530,156 @@ def vault_tamper(req: TamperRequest):
     }
 
 
+# ---------------------------------------------------------------------------
+# Hidden note in a song — encrypted text in the audio samples themselves
+# ---------------------------------------------------------------------------
+
+class HideNoteRequest(BaseModel):
+    message: str
+    password: str
+
+
+@app.get("/api/signals/{signal_id}/note-capacity")
+def note_capacity(signal_id: str):
+    """How many bytes of text this signal can carry, for the live counter."""
+    sig = require(signal_id)
+    channels = 2 if sig.has_stereo else 1
+    return {"capacityBytes": audio_stego.capacity_bytes(len(sig.y) * channels),
+            "channels": channels}
+
+
+@app.post("/api/signals/{signal_id}/hide-note")
+def hide_note(signal_id: str, req: HideNoteRequest):
+    """Encrypt a text note and hide it in the samples of this signal."""
+    sig = require(signal_id)
+    source = sig.y_stereo if sig.has_stereo else sig.y
+    try:
+        result = audio_stego.hide(source, sig.sr, req.message, req.password)
+    except audio_stego.StegoError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    # The file is named like the song, never like a secret.
+    stem = re.sub(r"\.[^.]+$", "", sig.name) or "track"
+    artifact = vault_store.add("file", result.wav, f"{stem}.wav", "audio/wav")
+
+    # Register the result as a session signal so it plays and compares in-app.
+    pcm = result.pcm_stego.astype(np.float32) / 32768.0
+    stereo = pcm.T if pcm.shape[1] == 2 else None
+    played = store.add(f"{sig.name} · with hidden note", pcm.mean(axis=1), sig.sr,
+                       origin="derived", source_id=sig.id, y_stereo=stereo,
+                       format="WAV", channels=int(pcm.shape[1]), bitDepth=16)
+    return {
+        "file": {"id": artifact.id, "filename": artifact.filename, "size": len(result.wav)},
+        "signal": played.summary(),
+        "stats": result.stats,
+        "changedSamples": result.changed_rows,
+        "timingsMs": result.timings_ms,
+    }
+
+
+@app.post("/api/vault/reveal-note")
+async def reveal_note(
+    password: str = Form(...),
+    file: UploadFile | None = File(None),
+    fileId: str | None = Form(None),
+):
+    """Read and decrypt a hidden note from an uploaded WAV/FLAC, or from a file
+    hidden earlier in this session. Every failure gives the same answer."""
+    if file is not None:
+        data = await file.read()
+    elif fileId:
+        artifact = vault_store.get(fileId)
+        if artifact is None:
+            raise HTTPException(status_code=404, detail="That file is no longer in this session.")
+        data = artifact.data
+    else:
+        raise HTTPException(status_code=400, detail="Choose an audio file to check.")
+    if not data:
+        raise HTTPException(status_code=400, detail="The uploaded file is empty.")
+    try:
+        result = audio_stego.reveal(data, password)
+    except audio_stego.RevealError as exc:
+        # 422 like the image vault: the request was fine, the content wasn't.
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"message": result.message, "stats": result.stats, "timingsMs": result.timings_ms}
+
+
 @app.post("/api/vault/clear")
-def vault_clear():
+def vault_clear(request: Request):
+    require_host(request)
     vault_store.clear()
     return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
+# Shared files — the room's drop box for LAN demos
+# ---------------------------------------------------------------------------
+
+@app.get("/api/client")
+def client_info(request: Request):
+    """Whether this request comes from the presenter's machine."""
+    return {"isHost": is_host(request)}
+
+
+@app.get("/api/shared")
+def shared_list():
+    return {"files": shared_store.list()}
+
+
+@app.post("/api/shared")
+async def shared_upload(file: UploadFile = File(...)):
+    chunks, size = [], 0
+    while chunk := await file.read(1024 * 1024):
+        size += len(chunk)
+        if size > SHARED_MAX_BYTES:
+            raise HTTPException(status_code=413, detail=f"Files up to "
+                                f"{SHARED_MAX_BYTES // (1024 * 1024)} MB can be shared.")
+        chunks.append(chunk)
+    try:
+        return shared_store.add(file.filename or "file", b"".join(chunks))
+    except SharedStoreError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/shared/from-vault/{artifact_id}")
+def shared_from_vault(artifact_id: str):
+    """Publish an encoded PNG or WAV straight from the vault, byte for byte."""
+    artifact = vault_store.get(artifact_id)
+    if artifact is None:
+        raise HTTPException(status_code=404, detail="That file is no longer in this session.")
+    try:
+        return shared_store.add(artifact.filename, artifact.data)
+    except SharedStoreError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/shared/{file_id}")
+def shared_download(file_id: str):
+    path = shared_store.path(file_id)
+    if path is None:
+        raise HTTPException(status_code=404, detail="That file is no longer shared.")
+    return FileResponse(path, filename=path.name, media_type="application/octet-stream",
+                        headers={"Cache-Control": "no-store",
+                                 "X-Content-Type-Options": "nosniff"})
+
+
+@app.delete("/api/shared/{file_id}")
+def shared_delete(file_id: str, request: Request):
+    require_host(request)
+    if not shared_store.remove(file_id):
+        raise HTTPException(status_code=404, detail="That file is no longer shared.")
+    return {"ok": True}
+
+
+@app.get("/api/jobs/{job_id}")
+def get_job(job_id: str):
+    """State of a karaoke or lyrics job; the page polls this until it is done."""
+    snapshot = jobs.snapshot(job_id)
+    if snapshot is None:
+        raise HTTPException(status_code=404,
+                            detail="This job is no longer on the server (it restarted or the "
+                                   "session was cleared). Press the button again.")
+    return snapshot
 
 
 @app.get("/api/health")

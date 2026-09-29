@@ -15,9 +15,11 @@ Every existing analysis path continues to read the mono `y` unchanged.
 """
 from __future__ import annotations
 
+import hashlib
 import threading
 import uuid
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import Any
 
 import numpy as np
@@ -39,6 +41,16 @@ class Signal:
     @property
     def has_stereo(self) -> bool:
         return self.y_stereo is not None and self.y_stereo.ndim == 2
+
+    @cached_property
+    def fingerprint(self) -> str:
+        """Hash of the audio itself, so the same song matches across copies."""
+        h = hashlib.blake2b(digest_size=16)
+        h.update(str(self.sr).encode())
+        h.update(self.y.tobytes())
+        if self.y_stereo is not None:
+            h.update(self.y_stereo.tobytes())
+        return h.hexdigest()
 
     @property
     def duration(self) -> float:

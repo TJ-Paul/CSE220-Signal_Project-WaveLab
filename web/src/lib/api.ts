@@ -5,11 +5,16 @@ import type {
   FadeShapes,
   FftData,
   FilterData,
+  Job,
+  HideNoteData,
   MergeData,
+  NoteCapacity,
   PitchData,
   ResampleData,
+  RevealNoteData,
   SamplingDemo,
   SeparateData,
+  SharedFile,
   SignalSummary,
   SilenceData,
   SpectrogramData,
@@ -22,6 +27,12 @@ import type {
   VaultPixelData,
   VaultTamperData,
   VocalsData,
+  LyricsLanguage,
+  LyricsMode,
+  TranscribeData,
+  TranscribeStatus,
+  VocalsEngine,
+  VocalsEngines,
   WaveformData,
 } from './types'
 
@@ -57,6 +68,30 @@ function post<T>(path: string, body?: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body ?? {}),
   })
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/** Start a server job and poll it until it finishes. The work runs on the
+ *  server either way, so a failed poll (a phone that locked its screen, a
+ *  Wi-Fi blip) is retried rather than fatal; `onUpdate` sees every state. */
+async function runJob<T>(start: Promise<Job<T>>, onUpdate?: (job: Job<T>) => void): Promise<T> {
+  let job = await start
+  const reused = job.reused
+  let failures = 0
+  for (;;) {
+    onUpdate?.({ ...job, reused })
+    if (job.status === 'done') return job.result as T
+    if (job.status === 'error') throw new ApiError(job.error ?? 'The job failed on the server.', 500)
+    await sleep(1000)
+    try {
+      job = await request<Job<T>>(`/jobs/${job.id}`)
+      failures = 0
+    } catch (e) {
+      // Give up only on a real answer (e.g. 404) or after a minute unreachable.
+      if (!(e instanceof ApiError) || e.status !== 0 || ++failures >= 60) throw e
+    }
+  }
 }
 
 export const api = {
@@ -162,10 +197,28 @@ export const api = {
   pitch: (id: string, body: { semitones: number }) =>
     post<PitchData>(`/signals/${id}/pitch`, body),
 
+  vocalsEngines: () => request<VocalsEngines>('/vocals/engines'),
+
   vocals: (
     id: string,
-    body: { preset: string; outputs: 'karaoke' | 'acapella' | 'both'; levelMatch: boolean },
-  ) => post<VocalsData>(`/signals/${id}/vocals`, body),
+    body: {
+      engine: VocalsEngine
+      preset: string
+      outputs: 'karaoke' | 'acapella' | 'both'
+      levelMatch: boolean
+    },
+    onUpdate?: (job: Job<VocalsData>) => void,
+  ) => runJob(post<Job<VocalsData>>(`/signals/${id}/vocals`, body), onUpdate),
+
+  /* Lyrics / transcription ------------------------------------------------ */
+
+  transcribeStatus: () => request<TranscribeStatus>('/transcribe/status'),
+
+  transcribe: (
+    id: string,
+    body: { language: LyricsLanguage; mode: LyricsMode; lyrics?: string },
+    onUpdate?: (job: Job<TranscribeData>) => void,
+  ) => runJob(post<Job<TranscribeData>>(`/signals/${id}/transcribe`, body), onUpdate),
 
   /* Secure vault ----------------------------------------------------------- */
 
@@ -215,6 +268,42 @@ export const api = {
     if (!res.ok) throw new ApiError('Could not read the encoded image', res.status)
     return new File([await res.blob()], name, { type: 'image/png' })
   },
+
+  /* Hidden note in a song -------------------------------------------------- */
+
+  noteCapacity: (id: string) => request<NoteCapacity>(`/signals/${id}/note-capacity`),
+
+  hideNote: (id: string, body: { message: string; password: string }) =>
+    post<HideNoteData>(`/signals/${id}/hide-note`, body),
+
+  /** Either an uploaded WAV/FLAC, or a file hidden earlier in this session. */
+  revealNote: (opts: { password: string; file?: File | null; fileId?: string | null }) => {
+    const form = new FormData()
+    form.append('password', opts.password)
+    if (opts.file) form.append('file', opts.file)
+    else if (opts.fileId) form.append('fileId', opts.fileId)
+    return request<RevealNoteData>('/vault/reveal-note', { method: 'POST', body: form })
+  },
+
+  /* Shared files (LAN demo drop box) ---------------------------------------- */
+
+  client: () => request<{ isHost: boolean }>('/client'),
+
+  listShared: () => request<{ files: SharedFile[] }>('/shared'),
+
+  uploadShared: (file: File) => {
+    const form = new FormData()
+    form.append('file', file)
+    return request<SharedFile>('/shared', { method: 'POST', body: form })
+  },
+
+  /** Publish a vault PNG or hidden-note WAV exactly as encoded. */
+  shareVaultArtifact: (artifactId: string) =>
+    post<SharedFile>(`/shared/from-vault/${artifactId}`),
+
+  deleteShared: (id: string) => request<{ ok: boolean }>(`/shared/${id}`, { method: 'DELETE' }),
+
+  sharedFileUrl: (id: string) => `${BASE}/shared/${id}`,
 }
 
 export { ApiError }

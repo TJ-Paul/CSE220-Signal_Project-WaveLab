@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@300;400;500;600;700&display=swap');
 @import 'tailwindcss';
 
 /* ---------------------------------------------------------------------------
@@ -124,6 +123,12 @@ body {
 
 /* Tabular figures everywhere numbers are compared or updated live, so
    values don't jitter as they change. */
+/* Lyrics can be English, Hindi (Devanagari) or Bangla (Bengali script):
+   Fira Sans has no Indic glyphs, so each script falls through to its Noto face. */
+.font-lyrics {
+  font-family: 'Fira Sans', 'Noto Sans Devanagari', 'Noto Sans Bengali', ui-sans-serif, system-ui, sans-serif;
+}
+
 .tnum {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
@@ -131,6 +136,16 @@ body {
 
 ::selection {
   background: var(--primary-soft);
+}
+
+/* iOS Safari zooms into any focused field set below 16px and does not zoom
+   back out, which strands phone users mid-form. */
+@media (pointer: coarse) {
+  input:not([type='range'], [type='checkbox'], [type='radio']),
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 *:focus-visible {

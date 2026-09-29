@@ -218,7 +218,29 @@ export interface PitchData {
   verification: Verification
 }
 
+/** A karaoke or lyrics run on the server, which the page polls until done. */
+export interface Job<T> {
+  id: string
+  status: 'queued' | 'running' | 'done' | 'error'
+  /** Jobs that will use the GPU before this one; null once it has started. */
+  ahead: number | null
+  elapsedS: number | null
+  /** True when another request had already started or finished this work. */
+  reused: boolean
+  result: T | null
+  error: string | null
+}
+
+export type VocalsEngine = 'ml' | 'classical'
+
+export interface VocalsEngines {
+  ml: boolean
+  classical: boolean
+  mlModel: string
+}
+
 export interface VocalsData {
+  engine: VocalsEngine
   preset: string
   levelMatched: boolean
   metrics: {
@@ -228,7 +250,60 @@ export interface VocalsData {
   }
   karaoke?: SignalSummary
   acapella?: SignalSummary
-  truth?: { vocalsCorrelation: number; instrumentalCorrelation: number }
+  truth?: {
+    vocalsCorrelation: number
+    instrumentalCorrelation: number
+    vocalsSdrDb: number
+    instrumentalSdrDb: number
+  }
+}
+
+export type LyricsLanguage = 'en' | 'hi' | 'bn'
+export type LyricsMode = 'song' | 'voice'
+
+export interface TranscribeStatus {
+  available: boolean
+  model: string
+  device: string | null
+  languages: { code: LyricsLanguage; name: string }[]
+}
+
+export interface LyricWord {
+  start: number
+  end: number
+  text: string
+}
+
+export interface LyricLine {
+  start: number
+  end: number
+  text: string
+  words: LyricWord[]
+}
+
+export interface TranscribeData {
+  language: LyricsLanguage
+  languageName: string
+  mode: LyricsMode
+  model: string
+  device: string
+  lines: LyricLine[]
+  timings: {
+    separateS: number | null
+    transcribeS: number
+    stemReused: boolean
+    loadModelsS: number | null
+    alignS: number | null
+  }
+  droppedSilent: number
+  recoveredLines: number
+  /** True when the lines are the user's own lyrics, synced to the audio. */
+  aligned: boolean
+  /** Share of the user's words Whisper also heard (aligned only). */
+  matchRate: number | null
+  /** Mean probability of the user's words given the audio (aligned only). */
+  confidence: number | null
+  vocals: SignalSummary | null
 }
 
 /* -------------------------------------------------------------------------- */
@@ -349,6 +424,49 @@ export interface VaultTamperData {
   fractionChanged: number
 }
 
+/* -------------------------------------------------------------------------- */
+/* Hidden note in a song                                                       */
+/* -------------------------------------------------------------------------- */
+
+export interface NoteCapacity {
+  capacityBytes: number
+  channels: number
+}
+
+/** One interleaved 16-bit sample whose lowest bit was nudged to carry a bit. */
+export interface NoteSampleRow {
+  index: number
+  before: number
+  after: number
+}
+
+export interface HideNoteData {
+  /** The WAV to keep — named like the song, stored in the vault session. */
+  file: { id: string; filename: string; size: number }
+  /** The same audio, registered as a session signal for playback. */
+  signal: SignalSummary
+  stats: {
+    messageBytes: number
+    capacityBytes: number
+    totalSamples: number
+    samplesUsed: number
+    samplesChanged: number
+    changeFraction: number
+    maxAmplitudeChange: number
+    psnrDb: number
+    channels: number
+    sampleRate: number
+  }
+  changedSamples: NoteSampleRow[]
+  timingsMs: Record<string, number>
+}
+
+export interface RevealNoteData {
+  message: string
+  stats: { messageBytes: number; channels: number; sampleRate: number; format?: string }
+  timingsMs: Record<string, number>
+}
+
 export type ViewId =
   | 'dashboard'
   | 'waveform'
@@ -357,12 +475,24 @@ export type ViewId =
   | 'vad'
   | 'sampling'
   | 'filter'
-  | 'separation'
   | 'denoise'
   | 'editor'
   | 'silence'
   | 'merge'
   | 'timepitch'
   | 'vocals'
+  | 'lyrics'
   | 'vault'
+  | 'note'
+  | 'shared'
   | 'compare'
+
+/** A file published to everyone on the network (the room's drop box). */
+export interface SharedFile {
+  id: string
+  name: string
+  size: number
+  /** Unix time in seconds. */
+  sharedAt: number
+  kind: 'image' | 'audio' | 'file'
+}

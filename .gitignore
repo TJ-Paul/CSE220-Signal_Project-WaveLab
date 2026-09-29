@@ -20,6 +20,10 @@ web/dist/
 .env.*
 !.env.example
 
+# ── LAN demo: files shared with the room, generated join page ──
+shared_files/
+.demo/
+
 # ── Audio produced at runtime (keep bundled samples) ──────
 *.wav
 *.mp3

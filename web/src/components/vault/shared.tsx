@@ -173,6 +173,13 @@ const STAGE_LABELS: Record<string, string> = {
   extraction: 'LSB extraction',
   decryption: 'AES-256-GCM decrypt',
   verification: 'Integrity check',
+  // Hidden note in a song
+  encrypt: 'AES-256-GCM encrypt',
+  embed: 'LSB matching (±1)',
+  writeWav: 'WAV encode',
+  positions: 'Password-chosen positions',
+  extract: 'LSB extraction',
+  decrypt: 'AES-256-GCM decrypt',
 }
 
 /** Where the time actually went — scrypt should dominate, by design. */

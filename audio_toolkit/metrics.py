@@ -36,6 +36,26 @@ def snr_db(reference: np.ndarray, test: np.ndarray) -> float:
     return float(10 * np.log10(signal_power / noise_power))
 
 
+def si_sdr_db(reference: np.ndarray, estimate: np.ndarray) -> float:
+    """Scale-invariant Signal-to-Distortion Ratio in dB, the standard score
+    for source separation (Le Roux et al., 2019).
+
+    Same idea as `snr_db`, but first the reference is scaled by the best
+    gain alpha = <estimate, reference> / ||reference||^2, so a stem that is
+    simply louder or quieter than the truth is not penalised:
+
+        target = alpha * reference
+        SI-SDR = 10 * log10( ||target||^2 / ||estimate - target||^2 )
+    """
+    reference, estimate = _align(reference, estimate)
+    reference = reference.astype(np.float64)
+    estimate = estimate.astype(np.float64)
+    alpha = np.dot(estimate, reference) / (np.dot(reference, reference) + 1e-20)
+    target = alpha * reference
+    error = estimate - target
+    return float(10 * np.log10((np.sum(target ** 2) + 1e-20) / (np.sum(error ** 2) + 1e-20)))
+
+
 def correlation(x: np.ndarray, y: np.ndarray) -> float:
     """Pearson correlation coefficient in [-1, 1]: how linearly similar
     the two waveforms' shapes are, independent of absolute amplitude.
